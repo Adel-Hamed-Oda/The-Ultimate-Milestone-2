@@ -25,6 +25,7 @@
         emergency_contact_phone CHAR(11),
         annual_balance INT,
         accidental_balance INT,
+        -- TODO: do something about the salary
         salary DECIMAL(10,2),
         hire_date DATE,
         last_working_date DATE,

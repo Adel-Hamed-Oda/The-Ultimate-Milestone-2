@@ -21,21 +21,15 @@ AS
 
     DECLARE @is_on_leave INT = 0;
 
-    SELECT COUNT(*)
-    INTO is_on_leave
-    FROM Leave
-    WHERE Leave.emp_ID = empID
-        AND CURDATE() BETWEEN L.start_date AND L.end_date
-        AND Leave.final_approval_status = 'approved';
-
-    IF @is_on_leave > 0
+    IF (Is_On_Leave(emp_ID, CURDATE(), CURDATE()) = 0) BEGIN
         UPDATE Employee
         SET employment_status = 'onleave'
         WHERE employee_ID = @empID;
-    ELSE
+    END ELSE BEGIN
         UPDATE Employee
         SET employment_status = 'active'
         WHERE employee_ID = @empID;
+    END;
 
 GO;
 

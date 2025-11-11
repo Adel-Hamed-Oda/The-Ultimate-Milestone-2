@@ -145,6 +145,7 @@ GO;
 --                          EXTRA PROC
 ----------------------------------------------------------------
 
+-- TODO: probably going delete this
 CREATE PROC Update_All_Salaries AS
 
     UPDATE E
