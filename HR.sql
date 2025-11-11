@@ -26,4 +26,4 @@ END;
 GO;
 
 -- TODO: complete rest of HR
--- yes I have so little respect for this thing that even the only thing that I did for this file is not correct lol
+-- yes I have so little respect for this thing that even the only thing that I did for this file is not correct
