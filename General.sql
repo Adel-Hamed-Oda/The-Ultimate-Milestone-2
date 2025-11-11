@@ -52,92 +52,82 @@ CREATE PROC clearAllTables AS
 
 GO;
 
--- fix the syntax errors in the creating views part
+-- TODO: looks sus, check with TA
 
-CREATE PROC allEmployeeProfiles AS
-    
-    CREATE VIEW allEmployeeProfiles AS
-    SELECT
-        employee_ID,
-        first_name,
-        last_name,
-        gender,
-        email,
-        address,
-        years_of_experience,
-        official_day_off,
-        type_of_contract,
-        employment_status,
-        annual_balance,
-        accidental_balance
-    FROM Employee;
+CREATE VIEW allEmployeeProfiles AS
+SELECT
+    employee_ID,
+    first_name,
+    last_name,
+    gender,
+    email,
+    address,
+    years_of_experience,
+    official_day_off,
+    type_of_contract,
+    employment_status,
+    annual_balance,
+    accidental_balance
+FROM Employee;
 
 GO;
 
-CREATE PROC noEmployeeDept AS
-
-    CREATE VIEW noEmployeeDept AS
-    SELECT 
-        dept_name AS department_name,
-        COUNT(employee_ID) AS num_employees
-    FROM Employee
-    GROUP BY dept_name;
+CREATE VIEW noEmployeeDept AS
+SELECT 
+    dept_name AS department_name,
+    COUNT(employee_ID) AS num_employees
+FROM Employee
+GROUP BY dept_name;
 
 GO;
 
-CREATE PROC  allPerformance AS
-
-    CREATE VIEW allPerformance AS
-    SELECT 
-        P.performance_ID,
-        P.emp_ID,
-        E.first_name,
-        E.last_name,
-        P.rating,
-        P.comments,
-        P.semester
-    FROM Performance P
-    JOIN Employee E ON P.emp_ID = E.employee_ID
-    WHERE P.semester = 'WIN';
+CREATE VIEW allPerformance AS
+SELECT 
+    P.performance_ID,
+    P.emp_ID,
+    E.first_name,
+    E.last_name,
+    P.rating,
+    P.comments,
+    P.semester
+FROM Performance P
+JOIN Employee E ON P.emp_ID = E.employee_ID
+WHERE P.semester = 'WIN';
 
 GO;
 
-CREATE PROC allRejectedMedicals AS
-
-    CREATE VIEW allRejectedMedicals AS
-    SELECT 
-        M.request_ID,
-        M.emp_ID,
-        E.first_name,
-        E.last_name,
-        M.insurance_status,
-        M.disability_details,
-        M.type,
-        L.final_approval_status
-    FROM Medical_Leave M
-    JOIN Leave_ L ON M.request_ID = L.request_ID
-    JOIN Employee E ON M.emp_ID = E.employee_ID
-    WHERE L.final_approval_status = 'Rejected';
+CREATE VIEW allRejectedMedicals AS
+SELECT 
+    M.request_ID,
+    M.emp_ID,
+    E.first_name,
+    E.last_name,
+    M.insurance_status,
+    M.disability_details,
+    M.type,
+    L.final_approval_status
+FROM Medical_Leave M
+JOIN Leave_ L ON M.request_ID = L.request_ID
+JOIN Employee E ON M.emp_ID = E.employee_ID
+WHERE L.final_approval_status = 'Rejected';
 
 GO;
 
-CREATE PROC allEmployeeAttendance AS
-
-    CREATE VIEW allEmployeeAttendance AS
-    SELECT 
-        A.attendance_ID,
-        A.emp_ID,
-        E.first_name,
-        E.last_name,
-        A.date,
-        A.check_in_time,
-        A.check_out_time,
-        A.total_duration,
-        A.status
-    FROM Attendance A
-    -- TODO: not sure if this is how dates work
-    INNER JOIN Employee E ON A.emp_ID = E.employee_ID
-    WHERE A.date = CURDATE() - 1;
+CREATE VIEW allEmployeeAttendance AS
+SELECT 
+    A.attendance_ID,
+    A.emp_ID,
+    E.first_name,
+    E.last_name,
+    A.date,
+    A.check_in_time,
+    A.check_out_time,
+    A.total_duration,
+    A.status
+FROM Attendance A
+-- TODO: not sure if this is how dates work
+INNER JOIN Employee E ON A.emp_ID = E.employee_ID
+WHERE A.date = CURDATE() - 1;
 
 GO;
 
