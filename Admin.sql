@@ -106,6 +106,17 @@ CREATE PROC Remove_Holiday AS       -- fixed DELETE statement was in mysql synta
         JOIN Holiday H ON A.[date] BETWEEN H.from_date AND H.to_date
     );
 
+   /* can replace with this 
+   CREATE PROC Remove_Holiday AS
+    DELETE FROM Attendance
+    WHERE EXISTS (
+        SELECT 1
+        FROM Holiday H 
+        WHERE Attendance.[date] BETWEEN H.from_date AND H.to_date
+    );
+     check if i should change it to this or not 
+    */
+
 GO;
 
             -- revise this again just incase TODO: not sure how to compare the dates correctly

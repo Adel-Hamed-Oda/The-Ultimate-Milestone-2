@@ -12,7 +12,7 @@
     DROP TABLE IF EXISTS Medical_Leave;
     DROP TABLE IF EXISTS Accidental_Leave;
     DROP TABLE IF EXISTS Annual_Leave;
-    DROP TABLE IF EXISTS Leave;
+    DROP TABLE IF EXISTS Leave_; -- changed from Leave to Leave_ to avoid conflict with SQL keyword
     DROP TABLE IF EXISTS Role_existsIn_Department;
     DROP TABLE IF EXISTS Employee_Role;
     DROP TABLE IF EXISTS Role;
@@ -25,6 +25,40 @@ GO;
 CREATE PROC dropAllProceduresFunctionsViews AS
     
     --TODO: finish this after finishing all the other functions adn procedures
+    -- TODO update check and make sure everything is covered
+    --also revise code this is from copilot so im not sure about it
+
+BEGIN
+    DECLARE @sql NVARCHAR(MAX) = '';
+    
+    -- Drop all user defined functions
+    SELECT @sql = @sql + 'DROP FUNCTION IF EXISTS ' + QUOTENAME(SCHEMA_NAME(schema_id)) + '.' + QUOTENAME(name) + '; '
+    FROM sys.objects
+    WHERE type IN ('FN', 'IF', 'TF')  -- Scalar, Inline Table-Valued, Table-Valued
+      AND is_ms_shipped = 0;
+    
+    -- Drop all user-defined views
+    SELECT @sql = @sql + 'DROP VIEW IF EXISTS ' + QUOTENAME(SCHEMA_NAME(schema_id)) + '.' + QUOTENAME(name) + '; '
+    FROM sys.objects
+    WHERE type = 'V'  -- Views
+      AND is_ms_shipped = 0;
+    
+    -- Drop all user-defined procedures EXCEPT this one
+    SELECT @sql = @sql + 'DROP PROCEDURE IF EXISTS ' + QUOTENAME(SCHEMA_NAME(schema_id)) + '.' + QUOTENAME(name) + '; '
+    FROM sys.objects
+    WHERE type = 'P'  -- Stored Procedures
+      AND is_ms_shipped = 0
+      AND name <> 'dropAllProceduresFunctionsViews';  -- Don't drop itself
+    
+    -- Execute all DROP statements
+    IF LEN(@sql) > 0
+        EXEC sp_executesql @sql;
+END;
+GO;
+
+
+
+
 
 GO;
 
@@ -72,7 +106,7 @@ FROM Employee;
 
 GO;
 
-CREATE VIEW noEmployeeDept AS
+CREATE VIEW NoEmployeeDept AS
 SELECT 
     dept_name AS department_name,
     COUNT(employee_ID) AS num_employees
@@ -92,7 +126,7 @@ SELECT
     P.semester
 FROM Performance P
 JOIN Employee E ON P.emp_ID = E.employee_ID
-WHERE P.semester = 'WIN';
+WHERE P.semester LIKE 'W%'; -- not WIN because winter semesters might be W25 etc
 
 GO;
 
@@ -127,7 +161,7 @@ SELECT
 FROM Attendance A
 -- TODO: not sure if this is how dates work
 INNER JOIN Employee E ON A.emp_ID = E.employee_ID
-WHERE A.date = CURDATE() - 1;
+WHERE A.date = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
 
 GO;
 
