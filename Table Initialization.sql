@@ -83,8 +83,9 @@
         role_name VARCHAR(50),
 
         PRIMARY KEY (department_name, role_name),
-        FOREIGN KEY (department_name) REFERENCES Department(department_name),
+        FOREIGN KEY (department_name) REFERENCES Department(name),  -- fixed wrong table name according to the schema
         FOREIGN KEY (role_name) REFERENCES Role(role_name)
+
     );
 
     -- 7. Leave
@@ -93,7 +94,7 @@
         date_of_request DATE,
         start_date DATE,
         end_date DATE,
-        num_days AS end_date - start_date,
+        num_days AS DATEDIFF(DAY, start_date, end_date), -- num_days AS end_date - start_date, --cannot directly subtract dates in SQL Server
         final_approval_status VARCHAR(50),
 
         PRIMARY KEY (request_ID)
@@ -264,9 +265,9 @@
         leave_ID INT,
         status VARCHAR(50) DEFAULT 'pending',
 
-        PRIMARY KEY (emp1_ID, eeave_ID),
+        PRIMARY KEY (emp1_ID, leave_ID),            -- fixed typo in leave_ID not eeave_ID
         FOREIGN KEY (emp1_ID) REFERENCES Employee(employee_ID),
-        FOREIGN KEY (eeave_ID) REFERENCES Leave(request_ID),
+        FOREIGN KEY (leave_ID) REFERENCES Leave(request_ID),
 
         CHECK (status IN ('approved', 'rejected', 'pending'))
     );
