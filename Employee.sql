@@ -127,9 +127,7 @@ RETURN
     JOIN Attendance A ON D.attendance_ID = A.attendance_ID
     WHERE D.emp_ID = @employee_ID
       AND MONTH(D.date) = @month
-      AND D.type = 'missing days' -- TODO: not sure if this is what I am supposed to check for
-    --I think this works because having to check for check_in and check_out being missing as per milestone 1 would still 
-    --need us  to account for off-days. as long as there are checks on entries in the decuctions table we should be fine 
+      AND D.type = 'missing days' OR D.type = 'missing hours' 
 );
 
 GO;
@@ -312,8 +310,8 @@ BEGIN
     IF (Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
         AND @replacee_dept = @replacer_dept)
     BEGIN
-        INSERT INTO Employee_Approve_Leave
-        VALUES(@Upperboard_ID, @request_ID, 'approved');
+    INSERT INTO Employee_Approve_Leave
+     VALUES(@Upperboard_ID, @request_ID, 'approved');
         -- TODO: final approval status conditions still need to be done
     END
     ELSE
@@ -343,7 +341,8 @@ INSERT INTO Employee_Approve_Leave
 END 
 END 
 GO;
---TODO: verify that the ID actually belongs to an upper board member through a view or IF-condition
+--TODO: Create separate folders 
+    
 CREATE PROC Dean_andHR_Evaluation
 @employee_ID INT,
 @rating INT,
@@ -353,5 +352,23 @@ AS
 BEGIN 
 INSERT INTO Performance VALUES(@rating, @comment, @semester, @employee_ID)
 END 
+GO;
+--This depends on the fact that any entry into EmployeeApproveLEave is either accepted or rejected because it is still pending in the Leave table anyway
+--again pls correct me if I am wrong 
+CREATE PROC Final_Status 
+@request_ID INT 
+AS 
+BEGIN
+IF NOT EXISTS 
+(SELECT 1
+FROM EmployeeApproveLeave 
+WHERE leave_ID = @request_ID AND status = 'rejected') 
+UPDATE Leave 
+SET final_approval_status = 'accepted' 
+WHERE request_ID = @request_ID
+ELSE 
+UPDATE Leave 
+SET final_approval_status = 'rejected' 
+WHERE request_ID = @request_ID
+END 
 GO; 
-
