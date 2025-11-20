@@ -177,7 +177,6 @@ CREATE PROC createAllTables AS
         medical_ID INT,
         unpaid_ID INT,
 
-        PRIMARY KEY (document_ID),
         FOREIGN KEY (emp_ID) REFERENCES Employee(employee_ID),
         FOREIGN KEY (medical_ID) REFERENCES Medical_Leave(request_ID),
         FOREIGN KEY (unpaid_id) REFERENCES Unpaid_Leave(request_ID),
@@ -207,7 +206,7 @@ CREATE PROC createAllTables AS
         date DATE,
         check_in_time TIME,
         check_out_time TIME,
-        total_duration AS (check_out_time) - (check_in_time),
+        total_duration AS DATEDIFF(hour, check_in_time, check_out_time),
         status VARCHAR(50) DEFAULT 'absent',
         emp_ID INT,
 
