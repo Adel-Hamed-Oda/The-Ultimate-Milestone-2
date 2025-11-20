@@ -23,7 +23,7 @@ BEGIN
     RETURN @isValid;
 END;
 
-GO
+GO;
 
 CREATE FUNCTION MyPerformance
 (
@@ -49,7 +49,7 @@ RETURN
       AND P.semester = @semester
 );
 
-GO
+GO;
 
 CREATE FUNCTION MyAttendance
 (
@@ -78,7 +78,7 @@ RETURN
       )
 );
 
-GO
+GO;
 
 CREATE FUNCTION Last_month_payroll
 (
@@ -104,7 +104,7 @@ RETURN
       AND YEAR(payment_date) = YEAR(DATEADD(MONTH, -1, CAST (GETDATE() AS DATE)))
 );
 
-GO
+GO;
 
 CREATE FUNCTION Deductions_Attendance
 (
@@ -130,7 +130,7 @@ RETURN
       AND D.type = 'missing days' OR D.type = 'missing hours' 
 );
 
-GO
+GO;
 
 CREATE FUNCTION Is_On_Leave
 (
@@ -175,7 +175,7 @@ BEGIN
     RETURN @isOnLeave;
 END;
 
-GO
+GO;
 
 --Salma's edits start from here
 CREATE PROC Submit_annual
@@ -184,9 +184,9 @@ CREATE PROC Submit_annual
     @start_date DATE, 
     @end_date DATE 
 AS 
-
-    --idk if this insert style is redundant because this just ensures everything goes 
-    --into the correct column if any chnages to columns are made but supposedly there shouldn't be
+BEGIN
+IF CheckIfPartTime (@employee_ID INT) = 0
+BEGIN
     INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
     VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
     
@@ -194,8 +194,12 @@ AS
     DECLARE @request_id INT = SCOPE_IDENTITY();
     INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
     VALUES (@request_ID, @employee_ID, @replacement_emp);
-
-GO
+    INSERT INTO EmployeeApproveLeave VALUES(NULL,@request_id,'pending')
+END
+ELSE 
+PRINT 'Error! Part-time employees cannot apply for unpaid leave'
+END
+GO;
             
 --Adel's function
 CREATE FUNCTION Status_leaves
@@ -221,7 +225,7 @@ RETURN
       AND YEAR(L.date_of_request) = YEAR(CAST (GETDATE() AS DATE))
 );
 
-GO
+GO;
 
 --More of Salma's stuff (pls correct me if I made a mistakeee)
 CREATE PROC Submit_accidental
@@ -230,13 +234,18 @@ CREATE PROC Submit_accidental
 @end_date DATE
 AS
 BEGIN 
+IF @start_date <> @end_date
+PRINT 'Error! Accidental leave must be for 1 day only'
+ELSE 
+BEGIN
 INSERT INTO Leave VALUES(CAST (GETDATE() AS DATE), @start_date, @end_date, 'pending')
 DECLARE @request_id INT = SCOPE_IDENTITY();
 INSERT INTO Accidental_Leave VALUES(@request_id, @employee_ID)
+INSERT INTO EmployeeApproveLeave VALUES(NULL,@request_id,'pending')
+END
 END 
-GO
---For medical and unpaid we have file_name and doc_desc which go into document. an insertion doesn't make sense 
---bec we don't have any details abt the doc except these two. 
+GO;
+
 CREATE PROC Submit_medical
 @employee_ID INT, 
 @start_date DATE, 
@@ -248,15 +257,45 @@ CREATE PROC Submit_medical
 @file_name VARCHAR(50)
 AS
 BEGIN 
+IF (@type = 'maternity' AND CheckIfMale(@employee_ID) = 1) OR (@type = 'maternity' AND CheckIfPartTime (@employee_ID) = 1)
+BEGIN
+PRINT 'Error! Male and part-time employees are not authorised to apply for maternity leaves'
+END
+ELSE 
+BEGIN 
 INSERT INTO Leave VALUES(CAST (GETDATE() AS DATE), @start_date, @end_date, 'pending')
 DECLARE @request_id INT = SCOPE_IDENTITY();
 INSERT INTO Medical_Leave VALUES(@request_id, @insurance_status, @disability_details, @employee_ID)
--- Idk da sa7 wala la2
+INSERT INTO EmployeeApproveLeave VALUES(NULL,@request_id,'pending')
 UPDATE Document 
 SET medical_ID = @request_id 
 WHERE  description = @document_description AND file_name = @file_name
+END
 END 
-GO 
+GO; 
+
+CREATE FUNCTION CheckIfMale(@employee_ID INT)
+returns BIT
+AS 
+BEGIN 
+DECLARE @male BIT 
+IF EXISTS
+BEGIN
+(SELECT *
+FROM Employee
+WHERE  employee_ID = @employee_ID) 
+IF gender = 'M' 
+SET @male = 1
+ELSE 
+SET @male = 0 
+END 
+ELSE 
+BEGIN 
+SET @male = 0 
+END 
+return @male
+END 
+
 
 CREATE PROC Submit_unpaid
 @employee_ID INT, 
@@ -265,16 +304,52 @@ CREATE PROC Submit_unpaid
 @document_description VARCHAR(50), 
 @file_name VARCHAR(50)
 AS
-BEGIN 
+BEGIN
+IF CheckIfPartTime (@employee_ID INT) = 0
+BEGIN
+IF NOT EXISTS(SELECT 1 
+    FROM Unpaid_leave
+    WHERE employee_ID = @employee_ID)
+BEGIN
 INSERT INTO Leave VALUES(CAST (GETDATE() AS DATE), @start_date, @end_date, 'pending')
 DECLARE @request_id INT = SCOPE_IDENTITY();
 INSERT INTO Unpaid_Leave VALUES (@request_id, @employee_ID)
---also can't tell if it works or not
+INSERT INTO EmployeeApproveLeave VALUES(NULL,@request_id,'pending')
 UPDATE Document 
 SET unpaid_ID = @request_id 
-WHERE  description = @document_description AND file_name = @file_name
+WHERE description = @document_description AND file_name = @file_name
 END 
-GO
+ELSE 
+BEGIN 
+PRINT 'Error! An employee is only allowed one unpaid leave per year'
+END
+END 
+ELSE 
+PRINT 'Error! Part-time employees cannot apply for unpaid leave'
+END 
+GO;
+--i forgot it h3mlo bokra
+CREATE PROC Submit_compensation 
+@
+
+CREATE FUNCTION CheckIfPartTime (@employee_ID INT) 
+returns BIT 
+BEGIN 
+DECLARE @Y BIT 
+IF EXISTS (SELECT 1
+FROM Employee 
+WHERE @employee_ID = employee_ID)
+BEGIN 
+IF type_of_contract = 'part-time'
+SET @Y = 1 
+ELSE 
+SET @Y = 0 
+END 
+ELSE 
+SET @Y = 0
+RETURN @Y 
+END
+
 
 CREATE PROC Upperboard_approve_annual
     @request_ID INT,
@@ -320,7 +395,7 @@ BEGIN
         VALUES(@Upperboard_ID, @request_ID, 'rejected');
     END
 END
-GO
+GO;
 --note: idk wth a "valid reason" is
 CREATE PROC Upperboard_approve_unpaids
 @request_ID INT,
@@ -340,8 +415,8 @@ INSERT INTO Employee_Approve_Leave
         VALUES(@Upperboard_ID, @request_ID, 'rejected');
 END 
 END 
-GO
---TODO: Create separate folders 
+GO;
+--TODO: Fix approval hierarchy 
     
 CREATE PROC Dean_andHR_Evaluation
 @employee_ID INT,
@@ -352,9 +427,7 @@ AS
 BEGIN 
 INSERT INTO Performance VALUES(@rating, @comment, @semester, @employee_ID)
 END 
-GO
---This depends on the fact that any entry into EmployeeApproveLEave is either accepted or rejected because it is still pending in the Leave table anyway
---again pls correct me if I am wrong 
+GO;
 CREATE PROC Final_Status 
 @request_ID INT 
 AS 
@@ -371,4 +444,4 @@ UPDATE Leave
 SET final_approval_status = 'rejected' 
 WHERE request_ID = @request_ID
 END 
-GO 
+GO; 
