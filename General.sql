@@ -1,4 +1,9 @@
-﻿CREATE PROC dropAllTables AS
+﻿-- TESTING
+USE test;
+
+GO
+
+CREATE PROC dropAllTables AS
 
     DROP TABLE IF EXISTS Employee_Approve_Leave;
     DROP TABLE IF EXISTS Employee_Replace_Employee;
@@ -23,9 +28,7 @@
 
 GO
 
-CREATE PROC dropAllProceduresFunctionsViews
-AS
-BEGIN
+CREATE PROC dropAllProceduresFunctionsViews AS
     
     DROP FUNCTION IF EXISTS HRLoginValidation;
     DROP FUNCTION IF EXISTS EmployeeLoginValidation;
@@ -75,9 +78,10 @@ BEGIN
     DROP PROCEDURE IF EXISTS createAllTables;
     DROP PROCEDURE IF EXISTS dropAllTables;
     DROP PROCEDURE IF EXISTS clearAllTables;
-    DROP PROCEDURE IF EXISTS Update_All_Salaries;
+    DROP PROCEDURE IF EXISTS Update_All_Salaries; -- TODO: probably going to delete this
 
-END;
+    DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
+
 GO
 
 CREATE PROC clearAllTables AS
@@ -105,78 +109,83 @@ CREATE PROC clearAllTables AS
 GO
 
 CREATE VIEW allEmployeeProfiles AS
-SELECT
-    employee_ID,
-    first_name,
-    last_name,
-    gender,
-    email,
-    address,
-    years_of_experience,
-    official_day_off,
-    type_of_contract,
-    employment_status,
-    annual_balance,
-    accidental_balance
-FROM Employee;
+
+    SELECT
+        employee_ID,
+        first_name,
+        last_name,
+        gender,
+        email,
+        address,
+        years_of_experience,
+        official_day_off,
+        type_of_contract,
+        employment_status,
+        annual_balance,
+        accidental_balance
+    FROM Employee;
 
 GO
 
 CREATE VIEW NoEmployeeDept AS
-SELECT 
-    dept_name AS department_name,
-    COUNT(employee_ID) AS num_employees
-FROM Employee
-GROUP BY dept_name;
+
+    SELECT 
+        dept_name AS department_name,
+        COUNT(employee_ID) AS num_employees
+    FROM Employee
+    GROUP BY dept_name;
 
 GO
 
 CREATE VIEW allPerformance AS
-SELECT 
-    P.performance_ID,
-    P.emp_ID,
-    E.first_name,
-    E.last_name,
-    P.rating,
-    P.comments,
-    P.semester
-FROM Performance P
-JOIN Employee E ON P.emp_ID = E.employee_ID
-WHERE P.semester LIKE 'W%';
+
+    SELECT 
+        P.performance_ID,
+        P.emp_ID,
+        E.first_name,
+        E.last_name,
+        P.rating,
+        P.comments,
+        P.semester
+    FROM Performance P
+    JOIN Employee E ON P.emp_ID = E.employee_ID
+    WHERE P.semester LIKE 'W%';
 
 GO
 
 CREATE VIEW allRejectedMedicals AS
-SELECT 
-    M.request_ID,
-    M.emp_ID,
-    E.first_name,
-    E.last_name,
-    M.insurance_status,
-    M.disability_details,
-    M.type,
-    L.final_approval_status
-FROM Medical_Leave M
-JOIN Leave_ L ON M.request_ID = L.request_ID
-JOIN Employee E ON M.emp_ID = E.employee_ID
-WHERE L.final_approval_status = 'Rejected';
+
+    SELECT 
+        M.request_ID,
+        M.emp_ID,
+        E.first_name,
+        E.last_name,
+        M.insurance_status,
+        M.disability_details,
+        M.type,
+        L.final_approval_status
+    FROM Medical_Leave M
+    JOIN Leave L ON M.request_ID = L.request_ID
+    JOIN Employee E ON M.emp_ID = E.employee_ID
+    WHERE L.final_approval_status = 'Rejected';
 
 GO
 
 CREATE VIEW allEmployeeAttendance AS
-SELECT 
-    A.attendance_ID,
-    A.emp_ID,
-    E.first_name,
-    E.last_name,
-    A.date,
-    A.check_in_time,
-    A.check_out_time,
-    A.total_duration,
-    A.status
-FROM Attendance A
-INNER JOIN Employee E ON A.emp_ID = E.employee_ID
-WHERE A.date = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
+
+    SELECT 
+        A.attendance_ID,
+        A.emp_ID,
+        E.first_name,
+        E.last_name,
+        A.date,
+        A.check_in_time,
+        A.check_out_time,
+        A.total_duration,
+        A.status
+    FROM Attendance A
+    INNER JOIN Employee E ON A.emp_ID = E.employee_ID
+    WHERE A.date = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
 
 GO
 

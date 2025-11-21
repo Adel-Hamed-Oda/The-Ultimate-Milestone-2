@@ -1,7 +1,4 @@
-﻿USE placeholder;
-DROP DATABASE IF EXISTS test;
-CREATE DATABASE test;
-
+﻿-- TESTING
 USE test;
 
 GO
@@ -275,7 +272,11 @@ CREATE PROC createAllTables AS
         CHECK (LOWER(status) IN ('approved', 'rejected', 'pending'))
     );
 
-go
+GO
+
+EXEC createAllTables;
+
+GO
 
 CREATE TRIGGER trg_InsertEmployeeRole
 ON Role
