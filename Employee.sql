@@ -1,4 +1,4 @@
-﻿-- TODO: same as HR
+-- TODO: same as HR
 CREATE FUNCTION EmployeeLoginValidation
 (
     @employee_ID INT,
@@ -176,27 +176,6 @@ BEGIN
 END;
 
 GO
-
---Salma's edits start from here
-CREATE PROC Submit_annual
-    @employee_id INT, 
-    @replacement_emp INT, 
-    @start_date DATE, 
-    @end_date DATE 
-AS 
-
-    --idk if this insert style is redundant because this just ensures everything goes 
-    --into the correct column if any chnages to columns are made but supposedly there shouldn't be
-    INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
-    VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
-    
-    --This thing gets the last value inserted into an "identity column", in this case our employee_id
-    DECLARE @request_id INT = SCOPE_IDENTITY();
-    INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
-    VALUES (@request_ID, @employee_ID, @replacement_emp);
-
-GO
-            
 --Adel's function
 CREATE FUNCTION Status_leaves
 (
@@ -223,20 +202,110 @@ RETURN
 
 GO
 
---More of Salma's stuff (pls correct me if I made a mistakeee)
+--Salma's stuff
+
+--leaves
+---------------------------------------------------------
+-- Submit_annual
+---------------------------------------------------------
+CREATE PROC Submit_annual
+    @employee_id INT, 
+    @replacement_emp INT, 
+    @start_date DATE, 
+    @end_date DATE 
+AS 
+BEGIN
+    IF CheckIfPartTime (@employee_ID) = 0
+    BEGIN
+        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+        VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
+        
+        DECLARE @request_id INT = SCOPE_IDENTITY();
+
+        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
+        VALUES (@request_id, @employee_ID, @replacement_emp);
+
+        DECLARE @dept_name VARCHAR(50); 
+        SELECT @dept_name = dept_name
+        FROM Employee 
+        WHERE @employee_ID = employee_ID; 
+
+        IF @dept_name = 'Medical' OR @dept_name = 'HR'
+        BEGIN
+            RETURN;
+        END
+        ELSE 
+        BEGIN
+            IF Check_DeanOR_Vice(@employee_ID) = 1
+            BEGIN
+                DECLARE @president_ID INT;
+                SELECT @president_ID = emp_ID
+                FROM Employee_Role 
+                WHERE role_name = 'President';
+
+                INSERT INTO EmployeeApproveLeave VALUES(@president_ID,@request_id,'pending');
+            END 
+            ELSE
+            BEGIN
+                DECLARE @dean_ID INT; 
+                SELECT @dean_ID = E.employee_ID 
+                FROM Employee_Role E 
+                INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
+                WHERE R.dept_name = @dept_name AND E.role_name = 'Dean';
+
+                IF Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+                BEGIN
+                    INSERT INTO EmployeeApproveLeave VALUES(@dean_ID,@request_id,'pending');
+                END
+                ELSE 
+                BEGIN 
+                    DECLARE @vice_dean_ID INT; 
+                    SELECT @vice_dean_ID = E.employee_ID 
+                    FROM Employee_Role E 
+                    INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
+                    WHERE R.dept_name = @dept_name AND E.role_name = 'Vice Dean';
+
+                    INSERT INTO EmployeeApproveLeave VALUES(@vice_dean_ID,@request_id,'pending');
+                END
+            END
+        END
+    END
+    ELSE 
+    BEGIN
+        PRINT 'Error! Part-time employees cannot apply for annual leave';
+    END
+END
+GO
+
+
+---------------------------------------------------------
+-- Submit_accidental
+---------------------------------------------------------
 CREATE PROC Submit_accidental
 @employee_ID INT, 
 @start_date DATE, 
 @end_date DATE
 AS
 BEGIN 
-INSERT INTO Leave VALUES(CAST (GETDATE() AS DATE), @start_date, @end_date, 'pending')
-DECLARE @request_id INT = SCOPE_IDENTITY();
-INSERT INTO Accidental_Leave VALUES(@request_id, @employee_ID)
+IF @start_date <> @end_date
+    PRINT 'Error! Accidental leave must be for 1 day only'
+ELSE 
+BEGIN
+    INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+    VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
+
+    DECLARE @request_id INT = SCOPE_IDENTITY();
+
+    INSERT INTO Accidental_Leave(request_ID, emp_ID)
+    VALUES(@request_id, @employee_ID);
+END
 END 
 GO
---For medical and unpaid we have file_name and doc_desc which go into document. an insertion doesn't make sense 
---bec we don't have any details abt the doc except these two. 
+
+
+---------------------------------------------------------
+-- Submit_medical
+---------------------------------------------------------
 CREATE PROC Submit_medical
 @employee_ID INT, 
 @start_date DATE, 
@@ -248,16 +317,33 @@ CREATE PROC Submit_medical
 @file_name VARCHAR(50)
 AS
 BEGIN 
-INSERT INTO Leave VALUES(CAST (GETDATE() AS DATE), @start_date, @end_date, 'pending')
-DECLARE @request_id INT = SCOPE_IDENTITY();
-INSERT INTO Medical_Leave VALUES(@request_id, @insurance_status, @disability_details, @employee_ID)
--- Idk da sa7 wala la2
-UPDATE Document 
-SET medical_ID = @request_id 
-WHERE  description = @document_description AND file_name = @file_name
-END 
-GO 
+IF (@type = 'maternity' AND CheckIfMale(@employee_ID) = 1) 
+    OR (@type = 'maternity' AND CheckIfPartTime (@employee_ID) = 1)
+BEGIN
+    PRINT 'Error! Male and part-time employees are not authorised to apply for maternity leaves'
+END
+ELSE 
+BEGIN 
+    INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+    VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
+    DECLARE @request_id INT = SCOPE_IDENTITY();
+
+  
+    INSERT INTO Medical_Leave(request_ID, insurance_status, disability_details, type, emp_ID)
+    VALUES(@request_id, @insurance_status, @disability_details, @type, @employee_ID);
+
+    UPDATE Document 
+    SET medical_ID = @request_id 
+    WHERE  description = @document_description AND file_name = @file_name;
+END
+END 
+GO
+
+
+---------------------------------------------------------
+-- Submit_unpaid
+---------------------------------------------------------
 CREATE PROC Submit_unpaid
 @employee_ID INT, 
 @start_date DATE, 
@@ -265,23 +351,104 @@ CREATE PROC Submit_unpaid
 @document_description VARCHAR(50), 
 @file_name VARCHAR(50)
 AS
-BEGIN 
-INSERT INTO Leave VALUES(CAST (GETDATE() AS DATE), @start_date, @end_date, 'pending')
-DECLARE @request_id INT = SCOPE_IDENTITY();
-INSERT INTO Unpaid_Leave VALUES (@request_id, @employee_ID)
---also can't tell if it works or not
-UPDATE Document 
-SET unpaid_ID = @request_id 
-WHERE  description = @document_description AND file_name = @file_name
+BEGIN
+IF CheckIfPartTime (@employee_ID) = 0
+BEGIN
+    IF NOT EXISTS(SELECT 1 
+        FROM Unpaid_leave
+        WHERE employee_ID = @employee_ID)
+    BEGIN
+        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+        VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
+
+        DECLARE @request_id INT = SCOPE_IDENTITY();
+
+        INSERT INTO Unpaid_Leave(request_ID, emp_ID)
+        VALUES (@request_id, @employee_ID);
+
+        INSERT INTO EmployeeApproveLeave VALUES(NULL,@request_id,'pending');
+
+        UPDATE Document 
+        SET unpaid_ID = @request_id 
+        WHERE description = @document_description AND file_name = @file_name;
+
+        DECLARE @dept_name VARCHAR(50);
+        SELECT @dept_name = dept_name
+        FROM Employee 
+        WHERE @employee_ID = employee_ID;
+
+        IF Check_DeanOR_Vice(@employee_ID) = 1
+        BEGIN
+            DECLARE @president_ID INT;
+            SELECT @president_ID = emp_ID
+            FROM Employee_Role 
+            WHERE role_name = 'President';
+
+            INSERT INTO EmployeeApproveLeave VALUES(@president_ID,@request_id,'pending');
+        END 
+        ELSE
+        BEGIN
+            DECLARE @dean_ID INT; 
+            SELECT @dean_ID = E.employee_ID 
+            FROM Employee_Role E 
+            INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
+            WHERE R.dept_name = @dept_name AND E.role_name = 'Dean';
+
+            IF Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+                INSERT INTO EmployeeApproveLeave VALUES(@dean_ID,@request_id,'pending');
+            ELSE 
+            BEGIN 
+                DECLARE @vice_dean_ID INT;
+                SELECT @vice_dean_ID = E.employee_ID 
+                FROM Employee_Role E 
+                INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
+                WHERE R.dept_name = @dept_name AND E.role_name = 'Vice Dean';
+
+                INSERT INTO EmployeeApproveLeave VALUES(@vice_dean_ID,@request_id,'pending');
+            END
+        END
+    END 
+    ELSE 
+        PRINT 'Error! An employee is only allowed one unpaid leave per year';
+END 
+ELSE 
+    PRINT 'Error! Part-time employees cannot apply for unpaid leave';
 END 
 GO
 
+
+---------------------------------------------------------
+-- Submit_compensation
+---------------------------------------------------------
+CREATE PROC Submit_compensation
+@reason VARCHAR(50),
+@compensation_date DATE,
+@date_of_original_workday DATE,
+@emp_ID INT,
+@replacement_emp INT
+AS
+BEGIN 
+    INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+    VALUES (CAST(GETDATE() AS DATE), @compensation_date, @compensation_date, 'pending');
+
+    DECLARE @request_ID INT = SCOPE_IDENTITY();
+
+    INSERT INTO Compensation_Leave(request_ID, reason, date_of_original_workday, emp_ID, replacement_emp)
+    VALUES(@request_ID, @reason, @date_of_original_workday, @emp_ID, @replacement_emp);
+END 
+GO
+
+--Upperboard approvals
 CREATE PROC Upperboard_approve_annual
     @request_ID INT,
     @Upperboard_ID INT,
     @replacement_ID INT
 AS
 BEGIN
+    IF EXISTS (SELECT 1 
+    FROM Employee_Approve_Leave
+    WHERE emp1_ID = @Upperboard_ID) 
+    BEGIN
     DECLARE @emp_ID INT; 
     SELECT @emp_ID = emp_ID
     FROM Annual_Leave 
@@ -306,22 +473,26 @@ BEGIN
     SELECT @replacer_dept = department_name
     FROM Role_existsIn_Department
     WHERE role_name = @replacer_role;
-
+ 
     IF (Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
-        AND @replacee_dept = @replacer_dept)
+        AND @replacee_dept = @replacer_dept) AND ReplaceExist (@emp_ID, @replacement_ID) = 1 
     BEGIN
     INSERT INTO Employee_Approve_Leave
      VALUES(@Upperboard_ID, @request_ID, 'approved');
-        -- TODO: final approval status conditions still need to be done
     END
     ELSE
     BEGIN
         INSERT INTO Employee_Approve_Leave
         VALUES(@Upperboard_ID, @request_ID, 'rejected');
     END
+    END 
+    ELSE 
+    BEGIN 
+    PRINT 'Error! You are not authorised to approve/reject this leave'
+    END
 END
 GO
---note: idk wth a "valid reason" is
+--unfinished, kinda ignore for now
 CREATE PROC Upperboard_approve_unpaids
 @request_ID INT,
 @Upperboard_ID INT
@@ -342,7 +513,6 @@ END
 END 
 GO
 
---TODO: Create separate folders 
 CREATE PROC Dean_andHR_Evaluation
 @employee_ID INT,
 @rating INT,
@@ -353,21 +523,74 @@ BEGIN
 INSERT INTO Performance VALUES(@rating, @comment, @semester, @employee_ID)
 END 
 GO
-
-CREATE PROC Final_Status 
-@request_ID INT 
+--**helper functions**
+CREATE FUNCTION CheckIfMale(@employee_ID INT)
+returns BIT
 AS 
+BEGIN 
+DECLARE @male BIT 
+IF EXISTS
 BEGIN
-IF NOT EXISTS 
-(SELECT 1
-FROM EmployeeApproveLeave 
-WHERE leave_ID = @request_ID AND status = 'rejected') 
-UPDATE Leave 
-SET final_approval_status = 'accepted' 
-WHERE request_ID = @request_ID
+(SELECT *
+FROM Employee
+WHERE  employee_ID = @employee_ID) 
+IF gender = 'M' 
+SET @male = 1
 ELSE 
-UPDATE Leave 
-SET final_approval_status = 'rejected' 
-WHERE request_ID = @request_ID
+SET @male = 0 
 END 
-GO 
+ELSE 
+BEGIN 
+SET @male = 0 
+END 
+return @male
+END
+
+CREATE FUNCTION Check_DeanOR_Vice(@employee_ID INT)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @X BIT = 0;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Employee_Role
+        WHERE employee_ID = @employee_ID
+        AND (role_name = 'Dean' OR role_name = 'Vice Dean')
+    )
+        SET @X = 1;
+
+    RETURN @X;
+END;
+
+CREATE FUNCTION CheckIfPartTime (@employee_ID INT) 
+returns BIT 
+BEGIN 
+DECLARE @Y BIT 
+IF EXISTS (SELECT 1
+FROM Employee 
+WHERE @employee_ID = employee_ID)
+BEGIN 
+IF type_of_contract = 'part-time'
+SET @Y = 1 
+ELSE 
+SET @Y = 0 
+END 
+ELSE 
+SET @Y = 0
+RETURN @Y 
+END
+
+CREATE FUNCTION ReplaceExist (@emp1_ID INT, @emp2_ID INT) 
+returns BIT 
+BEGIN 
+DECLARE @Y BIT 
+IF EXISTS (SELECT 1
+FROM Employee_Replace_Employee
+WHERE emp1_ID = @emp1_ID AND emp2_ID = @emp2_ID) 
+SET @Y = 1 
+ELSE 
+SET @Y = 0 
+RETURN @Y 
+END
+--TODO: Handle unpaid leave submission and unpaid leave approval as I have a lot of questions about how they work 
