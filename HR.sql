@@ -1,28 +1,22 @@
-﻿-- TODO: still not sure how to check for passwords
-CREATE FUNCTION HRLoginValidation
-(
-    @employee_ID INT,
-    @password VARCHAR(50)
-)
+﻿CREATE FUNCTION [HRLoginValidation] (@employee_ID INT, @password VARCHAR(50))
 RETURNS BIT
 AS
-
 BEGIN
-    DECLARE @isValid BIT;
+    DECLARE @b BIT
 
-    DECLARE @b BIT;
-
-    IF EXISTS (
-        SELECT *
-        FROM Employee
-        WHERE employee_ID = @employee_ID
-          AND password = @password
-    )
-        SET @isValid = 1;
+    -- 
+    IF (EXISTS (
+        SELECT E.*
+        FROM Employee E
+        WHERE E.dept_name = 'HR'
+          AND E.pass = @password
+          AND E.employee_id = @employee_ID
+    ))
+        SET @b = 1
     ELSE
-        SET @isValid = 0;
+        SET @b = 0
 
-    RETURN @isValid;
+    RETURN b
 END;
 
 GO
@@ -144,21 +138,19 @@ AS
     );
 
     IF 
-        (SELECT MONTH(date_of_request)
+        EXISTS 
+        (SELECT *
         FROM Leave
-        WHERE request_ID = @request_ID)
-        =
-        (SELECT MONTH(start_date)
-        FROM Leave
-        WHERE request_ID = @request_ID)
+        WHERE request_ID = @request_ID AND
+            MONTH(date_of_request) = MONTH(start_date))
     BEGIN
         SET @same_month = 1;
     END ELSE BEGIN
         SET @same_month = 0;
     END;
 
-    -- TODO: not sure if this is in hours or another format, need to check during testing as this assumes it is in hours
-    IF @time_spent < 8 OR @same_month = 0 BEGIN
+    -- time spent is in minutes
+    IF @time_spent < 480 OR @same_month = 0 BEGIN
         INSERT INTO Employee_Approve_Leave (emp1_ID, leave_ID, status)
         VALUES (@HR_ID, @request_ID, 'rejected');
     END ELSE BEGIN
@@ -172,7 +164,6 @@ CREATE PROC Deduction_hours
     @employee_ID INT
 AS
 
-    -- TODO: same as previous TODO
     DECLARE @attendance_ID INT = -1;
     SELECT TOP (1) 
         @attendance_ID = attendance_ID
@@ -180,7 +171,7 @@ AS
     WHERE 
         @emp_ID = employee_ID
         AND MONTH([date]) = MONTH(GETDATE())
-        AND total_duration < 8
+        AND total_duration < 480
     ORDER BY [date];
 
     IF @attendance_ID <> -1 BEGIN
@@ -211,7 +202,7 @@ BEGIN
     FROM Employee_Role ER
     JOIN Role R ON ER.role_name = R.role_name
     WHERE emp_ID = @employee_ID
-    ORDER BY R.rank ASC;
+    ORDER BY R.rank;
 
     -- Rate per hour formula
     SET @rate_per_hour = (@salary / 22) / 8;
@@ -222,7 +213,7 @@ BEGIN
             @rate_per_hour *
             ((@overtime_factor *
               CASE 
-                    WHEN total_duration > 8 THEN total_duration - 8
+                    WHEN total_duration > 480 THEN total_duration - 480
                     ELSE 0
               END) / 100.0)
         )
@@ -246,15 +237,12 @@ BEGIN
             @bonus DECIMAL(10,10),
             @deductions DECIMAL(10,10);
 
-    -- Get salary
     SELECT @salary = salary
     FROM Employee
     WHERE employee_ID = @employee_ID;
 
-    -- Get bonus via function
     SELECT @bonus = dbo.Bonus_amount(@employee_ID);
 
-    -- Sum finalized deductions for the period
     SELECT @deductions = SUM(amount)
     FROM Deduction
     WHERE emp_ID = @employee_ID
@@ -272,7 +260,7 @@ BEGIN
         @salary + @bonus - @deductions,
         @from_date,
         @to_date,
-        NULL,
+        NULL, -- I don't know, add 'I have the ms2 description here'
         @bonus,
         @deductions,
         @employee_ID

@@ -19,9 +19,7 @@
     DROP TABLE IF EXISTS Employee_Phone;
     DROP TABLE IF EXISTS Employee;
     DROP TABLE IF EXISTS Department;
-
-    -- TODO: should we also drop holiday
-    DROP TABLE IF EXISTS Holiday
+    DROP TABLE IF EXISTS Holiday -- we consider this to be part of the database
 
 GO
 
@@ -177,7 +175,6 @@ SELECT
     A.total_duration,
     A.status
 FROM Attendance A
--- TODO: not sure if this is how dates work
 INNER JOIN Employee E ON A.emp_ID = E.employee_ID
 WHERE A.date = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
 

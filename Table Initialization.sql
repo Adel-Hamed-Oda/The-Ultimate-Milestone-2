@@ -42,8 +42,8 @@ CREATE PROC createAllTables AS
         PRIMARY KEY (employee_ID),
         FOREIGN KEY (dept_name) REFERENCES Department(name),
 
-        CHECK (type_of_contract IN ('full_time', 'part_time')),
-        CHECK (employment_status IN ('active', 'onleave', 'notice_period', 'resigned'))
+        CHECK (LOWER(type_of_contract) IN ('full_time', 'part_time')),
+        CHECK (LOWER(employment_status) IN ('active', 'onleave', 'notice_period', 'resigned'))
     );
 
     -- 3. Employee_Phone
@@ -97,7 +97,7 @@ CREATE PROC createAllTables AS
         date_of_request DATE,
         start_date DATE,
         end_date DATE,
-        num_days AS DATEDIFF(DAY, start_date, end_date), -- num_days AS end_date - start_date, --cannot directly subtract dates in SQL Server
+        num_days AS DATEDIFF(DAY, start_date, end_date) + 1,
         final_approval_status VARCHAR(50),
 
         PRIMARY KEY (request_ID)
@@ -137,7 +137,7 @@ CREATE PROC createAllTables AS
         FOREIGN KEY (request_ID) REFERENCES Leave(request_ID),
         FOREIGN KEY (emp_ID) REFERENCES Employee(employee_ID),
 
-        CHECK (type IN ('sick', 'maternity'))
+        CHECK (LOWER(type) IN ('sick', 'maternity'))
     );
 
     -- 11. Unpaid_Leave
@@ -166,7 +166,7 @@ CREATE PROC createAllTables AS
 
     -- 13. Document
     CREATE TABLE Document (
-        document_ID INT IDENTITY(1,1) PRIMARY KEY,
+        document_ID INT IDENTITY(1,1),
         type VARCHAR(50),
         description VARCHAR(50),
         file_name VARCHAR(50),
@@ -177,11 +177,12 @@ CREATE PROC createAllTables AS
         medical_ID INT,
         unpaid_ID INT,
 
+        PRIMARY KEY (document_ID),
         FOREIGN KEY (emp_ID) REFERENCES Employee(employee_ID),
         FOREIGN KEY (medical_ID) REFERENCES Medical_Leave(request_ID),
         FOREIGN KEY (unpaid_id) REFERENCES Unpaid_Leave(request_ID),
 
-        CHECK (status IN ('valid', 'expired'))
+        CHECK (LOWER(status) IN ('valid', 'expired'))
     );
 
     -- 14. Payroll
@@ -206,14 +207,14 @@ CREATE PROC createAllTables AS
         date DATE,
         check_in_time TIME,
         check_out_time TIME,
-        total_duration AS DATEDIFF(hour, check_in_time, check_out_time),
+        total_duration AS DATEDIFF(minute, check_in_time, check_out_time),--TODO: check
         status VARCHAR(50) DEFAULT 'absent',
         emp_ID INT,
 
         PRIMARY KEY (attendance_ID),
         FOREIGN KEY (emp_ID) REFERENCES Employee(employee_ID),
 
-        CHECK (status IN ('absent', 'attended'))
+        CHECK (LOWER(status) IN ('absent', 'attended'))
     );
 
     -- 16. Deduction
@@ -232,8 +233,8 @@ CREATE PROC createAllTables AS
         FOREIGN KEY (unpaid_ID) REFERENCES Unpaid_Leave(request_ID),
         FOREIGN KEY (attendance_ID) REFERENCES Attendance(attendance_ID),
 
-        CHECK (type IN ('unpaid', 'missing_hours', 'missing_days')),
-        CHECK (status IN ('pending', 'finalized'))
+        CHECK (LOWER(type) IN ('unpaid', 'missing_hours', 'missing_days')),
+        CHECK (LOWER(status) IN ('pending', 'finalized'))
     );
 
     -- 17. Performance
@@ -271,7 +272,7 @@ CREATE PROC createAllTables AS
         FOREIGN KEY (emp1_ID) REFERENCES Employee(employee_ID),
         FOREIGN KEY (leave_ID) REFERENCES Leave(request_ID),
 
-        CHECK (status IN ('approved', 'rejected', 'pending'))
+        CHECK (LOWER(status) IN ('approved', 'rejected', 'pending'))
     );
 
 GO

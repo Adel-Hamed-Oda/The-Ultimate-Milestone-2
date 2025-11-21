@@ -341,8 +341,8 @@ INSERT INTO Employee_Approve_Leave
 END 
 END 
 GO
+
 --TODO: Create separate folders 
-    
 CREATE PROC Dean_andHR_Evaluation
 @employee_ID INT,
 @rating INT,
@@ -353,8 +353,7 @@ BEGIN
 INSERT INTO Performance VALUES(@rating, @comment, @semester, @employee_ID)
 END 
 GO
---This depends on the fact that any entry into EmployeeApproveLEave is either accepted or rejected because it is still pending in the Leave table anyway
---again pls correct me if I am wrong 
+
 CREATE PROC Final_Status 
 @request_ID INT 
 AS 
