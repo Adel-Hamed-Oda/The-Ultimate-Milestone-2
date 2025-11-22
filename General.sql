@@ -38,6 +38,10 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP FUNCTION IF EXISTS Deductions_Attendance;
     DROP FUNCTION IF EXISTS Is_On_Leave;
     DROP FUNCTION IF EXISTS Status_leaves;
+    DROP FUNCTION IF EXISTS Check_DeanOR_Vice;
+    DROP FUNCTION IF EXISTS CheckIfPartTime;
+    DROP FUNCTION IF EXISTS ReplaceExist;
+    DROP FUNCTION IF EXISTS CheckIfMale;
 
     DROP VIEW IF EXISTS allEmployeeProfiles;
     DROP VIEW IF EXISTS NoEmployeeDept;
