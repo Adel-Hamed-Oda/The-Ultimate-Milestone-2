@@ -284,18 +284,21 @@ ON Role
 INSTEAD OF INSERT
 AS
 BEGIN
+
+    DECLARE @role_name VARCHAR(50);
+    SELECT TOP 1 @role_name = SUBSTRING(i.role_name, 19, LEN(i.role_name) - 18) FROM inserted i
     -- If any inserted HR_Representative_* has an invalid department suffix,
     -- skip inserting all of them
     IF EXISTS (
         SELECT *
         FROM inserted i
         WHERE i.role_name LIKE 'HR_Representative_%'
-          AND SUBSTRING(i.role_name, 18, LEN(i.role_name) - 17)
+          AND SUBSTRING(i.role_name, 19, LEN(i.role_name) - 18)
               NOT IN (SELECT name FROM Department)
     )
     BEGIN
         -- error message for debugging we can delete it later 
-        PRINT 'Invalid HR Representative role_name: department does not exist.';
+        PRINT 'Invalid HR Representative role_name: does not exist.' + @role_name;
         RETURN;
     END;
 
@@ -323,3 +326,5 @@ BEGIN
         accidental_balance
     FROM inserted;
 END;
+
+DROP TRIGGER IF EXISTS trg_InsertEmployeeRole;
