@@ -250,10 +250,10 @@ BEGIN
             ELSE
             BEGIN
                 DECLARE @dean_ID INT; 
-                SELECT @dean_ID = E.employee_ID 
+                SELECT @dean_ID = E.emp_ID
                 FROM dbo.Employee_Role E 
                 INNER JOIN dbo.Role_existsIn_Department R ON E.role_name = R.role_name
-                WHERE R.dept_name = @dept_name 
+                WHERE R.department_name = @dept_name 
                   AND E.role_name = 'Dean';
 
                 IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
@@ -264,10 +264,10 @@ BEGIN
                 ELSE 
                 BEGIN 
                     DECLARE @vice_dean_ID INT; 
-                    SELECT @vice_dean_ID = E.employee_ID 
+                    SELECT @vice_dean_ID = E.emp_ID
                     FROM Employee_Role E 
                     INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-                    WHERE R.dept_name = @dept_name 
+                    WHERE R.department_name = @dept_name 
                       AND E.role_name = 'Vice Dean';
 
                     INSERT INTO EmployeeApproveLeave 
@@ -325,8 +325,8 @@ CREATE PROC Submit_medical
 @file_name VARCHAR(50)
 AS
 BEGIN 
-IF (@type = 'maternity' AND CheckIfMale(@employee_ID) = 1) 
-    OR (@type = 'maternity' AND CheckIfPartTime (@employee_ID) = 1)
+IF (@type = 'maternity' AND dbo.CheckIfMale(@employee_ID) = 1) 
+    OR (@type = 'maternity' AND dbo.CheckIfPartTime (@employee_ID) = 1)
 BEGIN
     PRINT 'Error! Male and part-time employees are not authorised to apply for maternity leaves'
 END
@@ -482,8 +482,8 @@ BEGIN
     FROM Role_existsIn_Department
     WHERE role_name = @replacer_role;
  
-    IF (Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
-        AND @replacee_dept = @replacer_dept) AND ReplaceExist (@emp_ID, @replacement_ID) = 1 
+    IF (dbo.Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+        AND @replacee_dept = @replacer_dept) AND dbo.ReplaceExist (@emp_ID, @replacement_ID) = 1 
     BEGIN
     INSERT INTO Employee_Approve_Leave
      VALUES(@Upperboard_ID, @request_ID, 'approved');
