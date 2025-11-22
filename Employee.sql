@@ -145,26 +145,26 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM
-            (SELECT emp_ID FROM Annual_Leave
+       FROM
+            (SELECT emp_ID, request_ID FROM Annual_Leave
             UNION
-            SELECT emp_ID FROM Accidental_Leave
+            SELECT emp_ID, request_ID FROM Accidental_Leave
             UNION
-            SELECT emp_ID FROM Medical_Leave
+            SELECT emp_ID, request_ID FROM Medical_Leave
             UNION
-            SELECT emp_ID FROM Unpaid_Leave
+            SELECT emp_ID, request_ID FROM Unpaid_Leave
             UNION
-            SELECT emp_ID FROM Compensation_Leave) AS L
+            SELECT emp_ID, request_ID FROM Compensation_Leave)  AS L INNER JOIN Leave ON Leave.request_ID = L.request_ID 
         WHERE L.emp_ID = @employee_ID
           AND (
-              L.final_approval_status = 'approved'
-              OR L.final_approval_status = 'pending'
+              Leave.final_approval_status = 'approved'
+              OR Leave.final_approval_status = 'pending'
           )
           AND (
-              (@from_date BETWEEN L.start_date AND L.end_date)
-              OR (@to_date BETWEEN L.start_date AND L.end_date)
-              OR (L.start_date BETWEEN @from_date AND @to_date)
-              OR (L.end_date BETWEEN @from_date AND @to_date)
+              (@from_date BETWEEN Leave.start_date AND Leave.end_date)
+              OR (@to_date BETWEEN Leave.start_date AND Leave.end_date)
+              OR (Leave.start_date BETWEEN @from_date AND @to_date)
+              OR (Leave.end_date BETWEEN @from_date AND @to_date)
           )
     ) BEGIN
         SET @isOnLeave = 1;
@@ -215,20 +215,20 @@ CREATE PROC Submit_annual
     @end_date DATE 
 AS 
 BEGIN
-    IF CheckIfPartTime (@employee_ID) = 0
+    IF dbo.CheckIfPartTime(@employee_id) = 0
     BEGIN
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
-        
+
         DECLARE @request_id INT = SCOPE_IDENTITY();
 
         INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
-        VALUES (@request_id, @employee_ID, @replacement_emp);
+        VALUES (@request_id, @employee_id, @replacement_emp);
 
         DECLARE @dept_name VARCHAR(50); 
         SELECT @dept_name = dept_name
-        FROM Employee 
-        WHERE @employee_ID = employee_ID; 
+        FROM dbo.Employee 
+        WHERE employee_ID = @employee_id; 
 
         IF @dept_name = 'Medical' OR @dept_name = 'HR'
         BEGIN
@@ -236,26 +236,30 @@ BEGIN
         END
         ELSE 
         BEGIN
-            IF Check_DeanOR_Vice(@employee_ID) = 1
+            IF dbo.Check_DeanOR_Vice(@employee_id) = 1
             BEGIN
                 DECLARE @president_ID INT;
+
                 SELECT @president_ID = emp_ID
-                FROM Employee_Role 
+                FROM dbo.Employee_Role 
                 WHERE role_name = 'President';
 
-                INSERT INTO EmployeeApproveLeave VALUES(@president_ID,@request_id,'pending');
+                INSERT INTO EmployeeApproveLeave 
+                VALUES(@president_ID, @request_id, 'pending');
             END 
             ELSE
             BEGIN
                 DECLARE @dean_ID INT; 
                 SELECT @dean_ID = E.employee_ID 
-                FROM Employee_Role E 
-                INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-                WHERE R.dept_name = @dept_name AND E.role_name = 'Dean';
+                FROM dbo.Employee_Role E 
+                INNER JOIN dbo.Role_existsIn_Department R ON E.role_name = R.role_name
+                WHERE R.dept_name = @dept_name 
+                  AND E.role_name = 'Dean';
 
-                IF Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+                IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
                 BEGIN
-                    INSERT INTO EmployeeApproveLeave VALUES(@dean_ID,@request_id,'pending');
+                    INSERT INTO EmployeeApproveLeave 
+                    VALUES(@dean_ID, @request_id, 'pending');
                 END
                 ELSE 
                 BEGIN 
@@ -263,9 +267,11 @@ BEGIN
                     SELECT @vice_dean_ID = E.employee_ID 
                     FROM Employee_Role E 
                     INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-                    WHERE R.dept_name = @dept_name AND E.role_name = 'Vice Dean';
+                    WHERE R.dept_name = @dept_name 
+                      AND E.role_name = 'Vice Dean';
 
-                    INSERT INTO EmployeeApproveLeave VALUES(@vice_dean_ID,@request_id,'pending');
+                    INSERT INTO EmployeeApproveLeave 
+                    VALUES(@vice_dean_ID, @request_id, 'pending');
                 END
             END
         END
@@ -276,6 +282,8 @@ BEGIN
     END
 END
 GO
+
+
 
 
 ---------------------------------------------------------
@@ -525,26 +533,23 @@ END
 GO
 --**helper functions**
 CREATE FUNCTION CheckIfMale(@employee_ID INT)
-returns BIT
-AS 
-BEGIN 
-DECLARE @male BIT 
-IF EXISTS
+RETURNS BIT
+AS
 BEGIN
-(SELECT *
-FROM Employee
-WHERE  employee_ID = @employee_ID) 
-IF gender = 'M' 
-SET @male = 1
-ELSE 
-SET @male = 0 
-END 
-ELSE 
-BEGIN 
-SET @male = 0 
-END 
-return @male
-END
+    DECLARE @male BIT = 0;
+    DECLARE @gender CHAR(1);
+
+    SELECT @gender = gender
+    FROM Employee
+    WHERE employee_ID = @employee_ID;
+
+    IF @gender = 'M'
+        SET @male = 1;
+
+    RETURN @male;
+END;
+GO
+
 
 CREATE FUNCTION Check_DeanOR_Vice(@employee_ID INT)
 RETURNS BIT
@@ -555,42 +560,52 @@ BEGIN
     IF EXISTS (
         SELECT 1
         FROM Employee_Role
-        WHERE employee_ID = @employee_ID
+        WHERE  emp_ID = @employee_ID
         AND (role_name = 'Dean' OR role_name = 'Vice Dean')
     )
         SET @X = 1;
 
     RETURN @X;
 END;
+GO
 
-CREATE FUNCTION CheckIfPartTime (@employee_ID INT) 
-returns BIT 
-BEGIN 
-DECLARE @Y BIT 
-IF EXISTS (SELECT 1
-FROM Employee 
-WHERE @employee_ID = employee_ID)
-BEGIN 
-IF type_of_contract = 'part-time'
-SET @Y = 1 
-ELSE 
-SET @Y = 0 
-END 
-ELSE 
-SET @Y = 0
-RETURN @Y 
-END
 
-CREATE FUNCTION ReplaceExist (@emp1_ID INT, @emp2_ID INT) 
-returns BIT 
-BEGIN 
-DECLARE @Y BIT 
-IF EXISTS (SELECT 1
-FROM Employee_Replace_Employee
-WHERE emp1_ID = @emp1_ID AND emp2_ID = @emp2_ID) 
-SET @Y = 1 
-ELSE 
-SET @Y = 0 
-RETURN @Y 
-END
+CREATE FUNCTION CheckIfPartTime (@employee_ID INT)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @Y BIT = 0;
+    DECLARE @contract_type VARCHAR(50);
+
+    SELECT @contract_type = type_of_contract
+    FROM Employee
+    WHERE employee_ID = @employee_ID;
+
+    IF @contract_type = 'part-time'
+        SET @Y = 1;
+
+    RETURN @Y;
+END;
+GO
+
+
+CREATE FUNCTION ReplaceExist (@emp1_ID INT, @emp2_ID INT)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @Y BIT = 0;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Employee_Replace_Employee
+        WHERE emp1_ID = @emp1_ID
+          AND emp2_ID = @emp2_ID
+    )
+        SET @Y = 1;
+
+    RETURN @Y;
+END;
+GO
+
+
 --TODO: Handle unpaid leave submission and unpaid leave approval as I have a lot of questions about how they work 
