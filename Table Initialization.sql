@@ -274,6 +274,7 @@ CREATE PROC createAllTables AS
 
 GO
 
+-- TESTING
 EXEC createAllTables;
 
 GO
