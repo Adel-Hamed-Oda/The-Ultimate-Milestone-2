@@ -127,7 +127,7 @@ RETURN
     JOIN Attendance A ON D.attendance_ID = A.attendance_ID
     WHERE D.emp_ID = @employee_ID
       AND MONTH(D.date) = @month
-      AND (D.type = 'missing days' OR D.type = 'missing hours') --i added parenthesis to fix how its parsed 
+      AND D.type = 'missing days' OR D.type = 'missing hours' 
 );
 
 GO
@@ -244,7 +244,7 @@ BEGIN
                 FROM dbo.Employee_Role 
                 WHERE role_name = 'President';
 
-                INSERT INTO EmployeeApproveLeave 
+                INSERT INTO Employee_Approve_Leave 
                 VALUES(@president_ID, @request_id, 'pending');
             END 
             ELSE
@@ -258,7 +258,7 @@ BEGIN
 
                 IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
                 BEGIN
-                    INSERT INTO EmployeeApproveLeave 
+                    INSERT INTO Employee_Approve_Leave 
                     VALUES(@dean_ID, @request_id, 'pending');
                 END
                 ELSE 
@@ -270,7 +270,7 @@ BEGIN
                     WHERE R.department_name = @dept_name 
                       AND E.role_name = 'Vice Dean';
 
-                    INSERT INTO EmployeeApproveLeave 
+                    INSERT INTO Employee_Approve_Leave 
                     VALUES(@vice_dean_ID, @request_id, 'pending');
                 END
             END
@@ -374,7 +374,7 @@ BEGIN
         INSERT INTO Unpaid_Leave(request_ID, emp_ID)
         VALUES (@request_id, @employee_ID);
 
-        INSERT INTO EmployeeApproveLeave VALUES(NULL,@request_id,'pending');
+        INSERT INTO Employee_Approve_Leave VALUES(NULL,@request_id,'pending');
 
         UPDATE Document 
         SET unpaid_ID = @request_id 
@@ -392,7 +392,7 @@ BEGIN
             FROM Employee_Role 
             WHERE role_name = 'President';
 
-            INSERT INTO EmployeeApproveLeave VALUES(@president_ID,@request_id,'pending');
+            INSERT INTO Employee_Approve_Leave VALUES(@president_ID,@request_id,'pending');
         END 
         ELSE
         BEGIN
@@ -403,7 +403,7 @@ BEGIN
             WHERE R.dept_name = @dept_name AND E.role_name = 'Dean';
 
             IF Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
-                INSERT INTO EmployeeApproveLeave VALUES(@dean_ID,@request_id,'pending');
+                INSERT INTO Employee_Approve_Leave VALUES(@dean_ID,@request_id,'pending');
             ELSE 
             BEGIN 
                 DECLARE @vice_dean_ID INT;
@@ -412,7 +412,7 @@ BEGIN
                 INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
                 WHERE R.dept_name = @dept_name AND E.role_name = 'Vice Dean';
 
-                INSERT INTO EmployeeApproveLeave VALUES(@vice_dean_ID,@request_id,'pending');
+                INSERT INTO Employee_Approve_Leave VALUES(@vice_dean_ID,@request_id,'pending');
             END
         END
     END 
