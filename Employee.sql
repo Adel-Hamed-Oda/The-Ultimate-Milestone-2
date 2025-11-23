@@ -1,4 +1,3 @@
--- TODO: same as HR
 CREATE FUNCTION EmployeeLoginValidation
 (
     @employee_ID INT,
@@ -361,7 +360,7 @@ CREATE PROC Submit_unpaid
 @file_name VARCHAR(50)
 AS
 BEGIN
-IF CheckIfPartTime (@employee_ID) = 0
+IF dbo.CheckIfPartTime(@employee_ID) = 0
 BEGIN
     IF NOT EXISTS(SELECT 1 
         FROM Unpaid_leave

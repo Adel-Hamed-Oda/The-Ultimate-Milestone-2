@@ -79,7 +79,7 @@ CREATE PROC Update_Attendance
     @check_in TIME,
     @check_out TIME
 AS
-    
+
     IF NOT EXISTS (
         SELECT * FROM Attendance 
         WHERE [date] = CAST(GETDATE() AS DATE)
