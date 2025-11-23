@@ -284,9 +284,6 @@ ON Role
 INSTEAD OF INSERT
 AS
 BEGIN
-
-    DECLARE @role_name VARCHAR(50);
-    SELECT TOP 1 @role_name = SUBSTRING(i.role_name, 19, LEN(i.role_name) - 18) FROM inserted i
     -- If any inserted HR_Representative_* has an invalid department suffix,
     -- skip inserting all of them
     IF EXISTS (
@@ -298,7 +295,7 @@ BEGIN
     )
     BEGIN
         -- error message for debugging we can delete it later 
-        PRINT 'Invalid HR Representative role_name: does not exist.' + @role_name;
+        PRINT 'Invalid HR Representative role_name: does not exist.';
         RETURN;
     END;
 
