@@ -39,17 +39,21 @@ AS
             @datesubmitted DATE,
             @startdate DATE
 
-    -- TODO, it is better to also check in accidental leave table
-    -- instead of using else, bas it shouldn't be that much of a problem
     -- Determine Leave Type
     IF (EXISTS (
         SELECT *
-        FROM Leave L, Annual_Leave -- TODO: missing A
+        FROM Leave L, Annual_Leave A
         WHERE L.request_ID = A.request_ID
             AND L.request_ID = @request_ID
     ))
         SET @type = 'annual'
-    ELSE
+    
+    IF (EXISTS (
+        SELECT *
+        FROM Leave L, Accidental_Leave A
+        WHERE L.request_ID = A.request_ID
+            AND L.request_ID = @request_ID
+    ))
         SET @type = 'accidental'
 
     -- Logic for Annual Leave
@@ -66,6 +70,7 @@ AS
         -- because the Employee_replace_Employee table contains employees that
         -- are currently replacing each other (hence the dates) there should be some
         -- other ways to do it
+
         SELECT @replacementemp = E.Emp2_ID
         FROM Employee_Replace_Employee E, Leave L
         WHERE E.Emp1_ID = @myid
@@ -152,11 +157,8 @@ AS
         ELSE
             SET @balancecheck = 0
 
-        -- TODO: ABS is correct, but since you also need to check that the
-        -- date submitted is before the start date, it should just be regular
-        -- DATEDIFF
         -- Leave submitted within 48 hours of start date
-        IF ABS(DATEDIFF(HOUR, @startdate, @datesubmitted)) <= 48
+        IF DATEDIFF(HOUR, @datesubmitted, @startdate) BETWEEN 0 AND 48
             SET @subwithin48hourscheck = 1;
         ELSE
             SET @subwithin48hourscheck = 0;
@@ -257,6 +259,7 @@ END;
 
 GO
 
+-- TODO: not 100% sure about this one, but good enough
 CREATE PROC HR_approval_compensation
     @request_ID INT,
     @HR_ID INT
@@ -265,8 +268,8 @@ AS
     DECLARE @emp_ID INT;
     DECLARE @time_spent INT = 0;
     DECLARE @same_month BIT;
+    DECLARE @same_department BIT;
 
-    -- TODO: this is wrong fix it
     SELECT @emp_ID = emp_ID
     FROM 
         Leave
@@ -286,6 +289,7 @@ AS
         (SELECT *
         FROM Leave
         WHERE request_ID = @request_ID AND
+            YEAR(date_of_request) = YEAR(start_date) AND
             MONTH(date_of_request) = MONTH(start_date))
     BEGIN
         SET @same_month = 1;
@@ -293,8 +297,21 @@ AS
         SET @same_month = 0;
     END;
 
+    IF 
+        EXISTS 
+        (SELECT *
+        FROM Employee E1, Employee E2
+        WHERE E1.employee_ID = @emp_ID AND
+            E2.employee_ID = @HR_ID AND
+            E1.dept_name = E2.dept_name)
+    BEGIN
+        SET @same_department = 1;
+    END ELSE BEGIN
+        SET @same_department = 0;
+    END;
+
     -- time spent is in minutes
-    IF @time_spent < 480 OR @same_month = 0 BEGIN
+    IF @time_spent < 480 OR @same_month = 0 OR @same_department = 0 BEGIN
         INSERT INTO Employee_Approve_Leave (emp1_ID, leave_ID, status)
         VALUES (@HR_ID, @request_ID, 'rejected');
     END ELSE BEGIN
@@ -314,6 +331,7 @@ AS
     FROM Attendance
     WHERE 
         @emp_ID = employee_ID
+        AND YEAR([date]) = YEAR(GETDATE())
         AND MONTH([date]) = MONTH(GETDATE())
         AND total_duration < 480
     ORDER BY [date];
@@ -327,6 +345,9 @@ AS
     END;
 
 GO
+
+-- TODO: Deduction_days
+-- TODO: Deduction_unpaid
 
 CREATE FUNCTION Bonus_amount (@employee_ID INT)
     RETURNS DECIMAL(10,2)
@@ -419,8 +440,6 @@ BEGIN
 END
 
 GO
-
--- TODO: complete rest of HR
 
 CREATE FUNCTION [GetRequestYear] (@request_ID INT)
 RETURNS INT
@@ -544,7 +563,10 @@ BEGIN
             @reason VARCHAR(50),
             @reasoncheck BIT,
             @replacementemp INT,
-            @availcheck BIT
+            @availcheck BIT,
+            -- added these to check for availability
+            @startdate DATE,
+            @enddate DATE;
 
     SET @myid = dbo.getIDrequesterCOMP(@request_ID)
 
@@ -555,9 +577,7 @@ BEGIN
         WHERE C.request_ID = @request_ID
           AND C.date_of_original_workday = A.date
           AND A.emp_ID = @myid
-          -- TODO: the total duration is in minutes (for some reason)
-          -- so it should be >= 480
-          AND DATEPART(HOUR, A.total_duration) >= 8 -- Not sure if this work
+          AND A.total_duration >= 480
           AND E.employee_ID = @myid
           AND DATENAME(WEEKDAY, C.date_of_original_workday) = E.official_day_off
           AND L.request_ID = C.request_ID
@@ -583,14 +603,13 @@ BEGIN
 
     -- Another employee must replace them HERE IM NOT SURE IF MULTIPLE PEOPLE CAN REPLACE ME SO I NEED
     -- TO CHECK IF ANYYY PERSONNN IS AVAILABLE (this gets last row only)
-    SELECT @replacementemp = E.Emp2_ID
+    SELECT @replacementemp = E.Emp2_ID, @startdate = L.start_date, @enddate = L.end_date
     FROM Employee_Replace_Employee E, Leave L
     WHERE E.Emp1_ID = @myid
       AND L.request_ID = @request_ID
 
-    -- TODO: change this to Is_On_Leave
     IF (@replacementemp IS NOT NULL) -- Is there anyone to even replace me
-        SET @availcheck = dbo.checkavail(@replacementemp, @request_ID) -- Yes? check if he is avail
+        SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
     ELSE
         SET @availcheck = 0
 
