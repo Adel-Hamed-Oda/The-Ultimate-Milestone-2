@@ -1,4 +1,4 @@
-﻿-- TESTING
+-- TESTING
 USE test;
 
 GO
@@ -24,7 +24,7 @@ CREATE PROC dropAllTables AS
     DROP TABLE IF EXISTS Employee_Phone;
     DROP TABLE IF EXISTS Employee;
     DROP TABLE IF EXISTS Department;
-    DROP TABLE IF EXISTS Holiday; -- we consider this to be part of the database
+    DROP TABLE IF EXISTS Holiday -- we consider this to be part of the database
 
 GO
 
@@ -102,7 +102,7 @@ CREATE PROC clearAllTables AS
     DELETE FROM Medical_Leave;
     DELETE FROM Accidental_Leave;
     DELETE FROM Annual_Leave;
-    DELETE FROM Leave; -- this was leave_ so i changed it to leave
+    DELETE FROM Leave;
     DELETE FROM Role_existsIn_Department;
     DELETE FROM Employee_Role;
     DELETE FROM Role;
