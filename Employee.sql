@@ -1,3 +1,8 @@
+-- TESTING
+use test;
+
+GO
+
 CREATE FUNCTION EmployeeLoginValidation
 (
     @employee_ID INT,
@@ -362,9 +367,9 @@ AS
 BEGIN
 IF dbo.CheckIfPartTime(@employee_ID) = 0
 BEGIN
-    IF NOT EXISTS(SELECT 1 
+    IF NOT EXISTS( SELECT 1 
         FROM Unpaid_leave
-        WHERE employee_ID = @employee_ID)
+        WHERE emp_ID = @employee_ID)
     BEGIN
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
@@ -385,7 +390,7 @@ BEGIN
         FROM Employee 
         WHERE @employee_ID = employee_ID;
 
-        IF Check_DeanOR_Vice(@employee_ID) = 1
+        IF dbo.Check_DeanOR_Vice(@employee_ID) = 1
         BEGIN
             DECLARE @president_ID INT;
             SELECT @president_ID = emp_ID
@@ -397,20 +402,20 @@ BEGIN
         ELSE
         BEGIN
             DECLARE @dean_ID INT; 
-            SELECT @dean_ID = E.employee_ID 
+            SELECT @dean_ID = E.emp_ID 
             FROM Employee_Role E 
             INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-            WHERE R.dept_name = @dept_name AND E.role_name = 'Dean';
+            WHERE R.department_name = @dept_name AND E.role_name = 'Dean';
 
-            IF Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+            IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
                 INSERT INTO Employee_Approve_Leave VALUES(@dean_ID,@request_id,'pending');
             ELSE 
             BEGIN 
                 DECLARE @vice_dean_ID INT;
-                SELECT @vice_dean_ID = E.employee_ID 
+                SELECT @vice_dean_ID = E.emp_ID 
                 FROM Employee_Role E 
                 INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-                WHERE R.dept_name = @dept_name AND E.role_name = 'Vice Dean';
+                WHERE R.department_name = @dept_name AND E.role_name = 'Vice Dean';
 
                 INSERT INTO Employee_Approve_Leave VALUES(@vice_dean_ID,@request_id,'pending');
             END

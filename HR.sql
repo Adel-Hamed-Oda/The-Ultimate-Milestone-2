@@ -9,14 +9,14 @@ BEGIN
         SELECT E.*
         FROM Employee E
         WHERE E.dept_name = 'HR'
-          AND E.pass = @password
+          AND E.password = @password
           AND E.employee_id = @employee_ID
     ))
         SET @b = 1
     ELSE
         SET @b = 0
 
-    RETURN b
+    RETURN @b;
 END;
 
 GO
@@ -46,7 +46,8 @@ AS
             @subwithin48hourscheck BIT,
             @datesubmitted DATE,
             @startdate DATE,
-            @enddate DATE
+            @enddate DATE,
+            @totaldays INT
 
     -- Determine Leave Type
     IF (EXISTS (
@@ -109,9 +110,9 @@ AS
         WHERE L.request_ID = @request_ID
 
         IF (@totaldays > @balance)
-            SET @balancecheck = 0
+            SET @balancecheck = 0;
         ELSE
-            SET @balancecheck = 1
+            SET @balancecheck = 1;
 
         -- Final Approval / Rejection for Annual
         IF (@balancecheck = 1 AND @approvalcheck = 1 AND @parttimecheck = 1 AND @availcheck = 1)
@@ -281,7 +282,7 @@ AS
         @attendance_ID = attendance_ID
     FROM Attendance
     WHERE 
-        @emp_ID = employee_ID
+        emp_ID = @employee_ID
         AND YEAR([date]) = YEAR(GETDATE())
         AND MONTH([date]) = MONTH(GETDATE())
         AND total_duration < 480

@@ -42,6 +42,11 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP FUNCTION IF EXISTS CheckIfPartTime;
     DROP FUNCTION IF EXISTS ReplaceExist;
     DROP FUNCTION IF EXISTS CheckIfMale;
+    DROP FUNCTION IF EXISTS Bonus_amount;
+    DROP FUNCTION IF EXISTS GetRequestYear;
+    DROP FUNCTION IF EXISTS isNotPartTime;
+    DROP FUNCTION IF EXISTS getIDrequesterUNPAID;
+    DROP FUNCTION IF EXISTS getIDrequesterCOMP;
 
     DROP VIEW IF EXISTS allEmployeeProfiles;
     DROP VIEW IF EXISTS NoEmployeeDept;
@@ -63,7 +68,7 @@ CREATE PROC dropAllProceduresFunctionsViews AS
 
     DROP PROCEDURE IF EXISTS HR_Approval_an_acc;
     DROP PROCEDURE IF EXISTS HR_approval_unpaid;
-    DROP PROCEDURE IF EXISTS HR_approval_compensation;
+    DROP PROCEDURE IF EXISTS HR_approval_comp;
    
     DROP PROCEDURE IF EXISTS Deduction_hours;
     DROP PROCEDURE IF EXISTS Deduction_days;
@@ -85,6 +90,11 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS Update_All_Salaries; -- TODO: probably going to delete this
 
     DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
+
+GO
+
+--TESTING
+EXEC dropAllProceduresFunctionsViews;
 
 GO
 

@@ -20,7 +20,7 @@ CREATE PROCEDURE Update_Employment_Status
 AS
     DECLARE @is_on_leave INT = 0;
 
-    IF (Is_On_Leave(@empID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 1)
+    IF (dbo.Is_On_Leave(@empID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 1)
     BEGIN
         UPDATE Employee
         SET employment_status = 'onleave'
@@ -135,10 +135,19 @@ AS
     WHERE emp_ID = @emp_ID
       AND [date] IN (
           SELECT A.[date]
-          FROM Attendance A
-          JOIN Leave L ON A.[date] BETWEEN L.start_date AND L.end_date
+          FROM Attendance A 
+          JOIN (Leave JOIN (SELECT emp_ID, request_ID FROM Annual_Leave
+                UNION
+                SELECT emp_ID, request_ID FROM Accidental_Leave
+                UNION
+                SELECT emp_ID, request_ID FROM Medical_Leave
+                UNION
+                SELECT emp_ID, request_ID FROM Unpaid_Leave
+                UNION
+                SELECT emp_ID, request_ID FROM Compensation_Leave) AS L ON Leave.request_ID = L.request_ID)
+                    ON A.[date] BETWEEN Leave.start_date AND Leave.end_date
           WHERE L.emp_ID = @emp_ID
-            AND L.final_approval_status = 'approved'
+            AND Leave.final_approval_status = 'approved'
       );
 GO
 

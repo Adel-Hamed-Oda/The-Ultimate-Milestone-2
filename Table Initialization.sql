@@ -324,5 +324,3 @@ BEGIN
         accidental_balance
     FROM inserted;
 END;
-
-DROP TRIGGER IF EXISTS trg_InsertEmployeeRole;
