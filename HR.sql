@@ -26,6 +26,14 @@ CREATE PROCEDURE HR_approval_an_acc
     @HR_ID INT
 AS
 
+    IF (EXISTS (
+            SELECT *
+            FROM Employee_Approve_Leave E
+            WHERE E.Leave_ID = @request_ID
+                AND E.status = 'pending'
+        ))
+    RETURN; -- If any previous pending just return
+
     DECLARE @type VARCHAR(50),
             @myid INT,
             @parttimecheck BIT,
@@ -37,7 +45,8 @@ AS
             @maxonedaycheck INT,
             @subwithin48hourscheck BIT,
             @datesubmitted DATE,
-            @startdate DATE
+            @startdate DATE,
+            @enddate DATE
 
     -- Determine Leave Type
     IF (EXISTS (
@@ -56,6 +65,10 @@ AS
     ))
         SET @type = 'accidental'
 
+    SELECT @startdate = L.start_date, @enddate = L.end_date
+    FROM Leave L
+    WHERE L.request_ID = @request_ID
+
     -- Logic for Annual Leave
     IF (@type = 'annual')
     BEGIN
@@ -66,18 +79,12 @@ AS
 
         SET @parttimecheck = dbo.isNotPartTime(@myid)
 
-        -- TODO: I think this is wrong
-        -- because the Employee_replace_Employee table contains employees that
-        -- are currently replacing each other (hence the dates) there should be some
-        -- other ways to do it
-
-        SELECT @replacementemp = E.Emp2_ID
-        FROM Employee_Replace_Employee E, Leave L
-        WHERE E.Emp1_ID = @myid
-            AND L.request_ID = @request_ID
+        SELECT @replacementemp = replacement_emp
+        FROM Annual_Leave
+        WHERE request_ID = @request_ID
 
         IF (@replacementemp IS NOT NULL) -- Is there anyone to even replace me
-            SET @availcheck = dbo.checkavail(@replacementemp, @request_ID) -- Yes? check if he is avail
+            SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
         ELSE
             SET @availcheck = 0
 
@@ -86,10 +93,7 @@ AS
             SELECT *
             FROM Employee_Approve_Leave E
             WHERE E.Leave_ID = @request_ID
-                -- TODO: in the milestone it says something about treating pending
-                -- as approved, but this is probably for only one function, not sure 
-                -- if it is for all of them
-                AND (E.status = 'rejected' OR E.status = 'pending')
+                AND E.status = 'rejected'
         ))
             SET @approvalcheck = 1
         ELSE
@@ -121,6 +125,8 @@ AS
             WHERE @request_ID = request_ID
 
             INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'approved')
+
+            INSERT INTO Employee_Replace_Employee VALUES (@myid, @replacementemp, @startdate, @enddate);
         END
         ELSE
         BEGIN
@@ -194,6 +200,15 @@ CREATE PROCEDURE HR_approval_unpaid
     @HR_ID INT
 AS
 BEGIN
+
+    IF (EXISTS (
+            SELECT *
+            FROM Employee_Approve_Leave E
+            WHERE E.Leave_ID = @request_ID
+                AND E.status = 'pending'
+        ))
+    RETURN; -- If any previous pending just return
+
     DECLARE @myid INT,
             @myrank INT,
             @parttimecheck BIT,
@@ -226,13 +241,11 @@ BEGIN
     ELSE
         SET @maxdurationcheck = 0
 
-    -- TODO: same thing here with the 'accepted' vs 'pending' issue
-    -- Checking if any approval was rejected
     IF (NOT EXISTS (
         SELECT *
         FROM Employee_Approve_Leave E
         WHERE E.Leave_ID = @request_ID
-          AND (E.status = 'rejected' OR E.status = 'pending')
+          AND E.status = 'rejected'
     ))
         SET @approvalcheck = 1
     ELSE
@@ -256,68 +269,6 @@ BEGIN
         INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'rejected')
     END
 END;
-
-GO
-
--- TODO: not 100% sure about this one, but good enough
-CREATE PROC HR_approval_compensation
-    @request_ID INT,
-    @HR_ID INT
-AS
-
-    DECLARE @emp_ID INT;
-    DECLARE @time_spent INT = 0;
-    DECLARE @same_month BIT;
-    DECLARE @same_department BIT;
-
-    SELECT @emp_ID = emp_ID
-    FROM 
-        Leave
-        JOIN Compensation_Leave ON Leave.request_ID = Compensation_Leave.request_ID
-    WHERE Leave.request_ID = @request_ID;
-
-    SELECT @time_spent = total_duration
-    FROM Attendance
-    WHERE date = (
-        SELECT date_of_original_work_day
-        FROM Compensation_Leave
-        WHERE request_ID = @request_ID
-    );
-
-    IF 
-        EXISTS 
-        (SELECT *
-        FROM Leave
-        WHERE request_ID = @request_ID AND
-            YEAR(date_of_request) = YEAR(start_date) AND
-            MONTH(date_of_request) = MONTH(start_date))
-    BEGIN
-        SET @same_month = 1;
-    END ELSE BEGIN
-        SET @same_month = 0;
-    END;
-
-    IF 
-        EXISTS 
-        (SELECT *
-        FROM Employee E1, Employee E2
-        WHERE E1.employee_ID = @emp_ID AND
-            E2.employee_ID = @HR_ID AND
-            E1.dept_name = E2.dept_name)
-    BEGIN
-        SET @same_department = 1;
-    END ELSE BEGIN
-        SET @same_department = 0;
-    END;
-
-    -- time spent is in minutes
-    IF @time_spent < 480 OR @same_month = 0 OR @same_department = 0 BEGIN
-        INSERT INTO Employee_Approve_Leave (emp1_ID, leave_ID, status)
-        VALUES (@HR_ID, @request_ID, 'rejected');
-    END ELSE BEGIN
-        INSERT INTO Employee_Approve_Leave (emp1_ID, leave_ID, status)
-        VALUES (@HR_ID, @request_ID, 'approved');
-    END;
 
 GO
 
@@ -508,56 +459,20 @@ END
 
 GO
 
--- there is a function in Employee called Is_On_Leave, sorry ya Nour :)
-CREATE FUNCTION [Checkavail] (@employee_ID INT, @request_ID INT)
-RETURNS BIT
-AS
-BEGIN
-    DECLARE @b BIT,
-            @s DATE,
-            @e DATE;
-
-    SELECT @s = L.start_date, @e = L.end_date
-    FROM Leave L, Compensation_Leave C
-    WHERE L.request_ID = C.request_ID
-      AND L.request_ID = @request_ID;
-
-    -- TODO: same thing here with 'approved' vs 'pending'
-    -- Is there any leave for this employee who will replace me within the period?
-    IF (EXISTS (
-        SELECT *
-        FROM Employee E, Leave L, Compensation_Leave C, Medical_Leave M, Unpaid_Leave U, Annual_Leave AN, Accidental_Leave AC
-        WHERE (
-                -- TODO: this is wrong, this only checks if the the employee being checked for is 
-                -- unavailable for the entire period, not if there is any overlap
-
-                -- for example:
-                -- requested leave is from day 10 to day 20
-                -- existing leave is from day 15 to day 25
-                
-                -- the function would consider the employee available even though they aren't for 5 days
-                (C.emp_ID = @employee_ID AND L.request_ID = C.request_ID AND L.start_date <= @e AND L.end_date >= @s) OR
-                (M.emp_ID = @employee_ID AND L.request_ID = M.request_ID AND L.start_date <= @e AND L.end_date >= @s) OR
-                (U.emp_ID = @employee_ID AND L.request_ID = U.request_ID AND L.start_date <= @e AND L.end_date >= @s) OR
-                (AN.emp_ID = @employee_ID AND L.request_ID = AN.request_ID AND L.start_date <= @e AND L.end_date >= @s) OR
-                (AC.emp_ID = @employee_ID AND L.request_ID = AC.request_ID AND L.start_date <= @e AND L.end_date >= @s)
-              )
-          AND L.final_approval_status = 'approved'
-    ))
-        SET @b = 0
-    ELSE
-        SET @b = 1
-
-    RETURN @b
-END
-
-GO
-
 CREATE PROCEDURE HR_approval_comp
     @request_ID INT,
     @HR_ID INT
 AS
 BEGIN
+    
+    IF (EXISTS (
+            SELECT *
+            FROM Employee_Approve_Leave E
+            WHERE E.Leave_ID = @request_ID
+                AND E.status = 'pending'
+        ))
+    RETURN; -- If any previous pending just return
+
     DECLARE @spentcheck BIT,
             @myid INT,
             @reason VARCHAR(50),
@@ -588,6 +503,10 @@ BEGIN
     ELSE
         SET @spentcheck = 0
 
+    SELECT @startdate = L.start_date, @enddate = L.end_date
+    FROM Leave L
+    WHERE L.request_ID = @request_ID
+
     -- Check valid reason...(not null or empty?)
     SELECT @reason = C.reason
     FROM Compensation_Leave C
@@ -598,20 +517,16 @@ BEGIN
     ELSE
         SET @reasoncheck = 1
 
-    -- TODO: like I said before this is wrong because this are employee currently replacing
-    -- each other, not the actual request
-
     -- Another employee must replace them HERE IM NOT SURE IF MULTIPLE PEOPLE CAN REPLACE ME SO I NEED
     -- TO CHECK IF ANYYY PERSONNN IS AVAILABLE (this gets last row only)
-    SELECT @replacementemp = E.Emp2_ID, @startdate = L.start_date, @enddate = L.end_date
-    FROM Employee_Replace_Employee E, Leave L
-    WHERE E.Emp1_ID = @myid
-      AND L.request_ID = @request_ID
+    SELECT @replacementemp = replacement_emp
+        FROM Compensation_Leave
+        WHERE request_ID = @request_ID
 
-    IF (@replacementemp IS NOT NULL) -- Is there anyone to even replace me
-        SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
-    ELSE
-        SET @availcheck = 0
+        IF (@replacementemp IS NOT NULL) -- Is there anyone to even replace me
+            SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
+        ELSE
+            SET @availcheck = 0
 
     -- Final check
     IF (@availcheck = 1 AND @spentcheck = 1 AND @reasoncheck = 1)
@@ -621,6 +536,8 @@ BEGIN
         WHERE request_ID = @request_ID
 
         INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'approved')
+
+        INSERT INTO Employee_Replace_Employee VALUES (@myid, @replacementemp, @startdate, @enddate);
     END
     ELSE
     BEGIN

@@ -228,8 +228,9 @@ BEGIN
         DECLARE @dept_name VARCHAR(50); 
         SELECT @dept_name = dept_name
         FROM dbo.Employee 
-        WHERE employee_ID = @employee_id; 
+        WHERE employee_ID = @employee_id;
 
+        -- this is because Nour said she would handle insertions into employee_approve_leave for HR and medical
         IF @dept_name = 'Medical' OR @dept_name = 'HR'
         BEGIN
             RETURN;
@@ -242,7 +243,7 @@ BEGIN
 
                 SELECT @president_ID = emp_ID
                 FROM dbo.Employee_Role 
-                WHERE role_name = 'President';
+                WHERE LOWER(role_name) = 'president';
 
                 INSERT INTO Employee_Approve_Leave 
                 VALUES(@president_ID, @request_id, 'pending');
