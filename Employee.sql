@@ -127,7 +127,7 @@ RETURN
     JOIN Attendance A ON D.attendance_ID = A.attendance_ID
     WHERE D.emp_ID = @employee_ID
       AND MONTH(D.date) = @month
-      AND D.type = 'missing days' OR D.type = 'missing hours' 
+      AND (D.type = 'missing days' OR D.type = 'missing hours'); --i added parenthesis to fix how its parsed 
 );
 
 GO
