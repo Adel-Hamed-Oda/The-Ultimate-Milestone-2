@@ -584,7 +584,7 @@ BEGIN
     FROM Employee
     WHERE employee_ID = @employee_ID;
 
-    IF @contract_type = 'part-time'
+    IF @contract_type = 'part_time'
         SET @Y = 1;
 
     RETURN @Y;
