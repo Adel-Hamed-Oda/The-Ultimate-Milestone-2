@@ -249,12 +249,13 @@ CREATE PROC createAllTables AS
 
     -- 18. Employee_Replace_Employee
     CREATE TABLE Employee_Replace_Employee (
+        Table_ID INT IDENTITY(1,1),
         emp1_ID INT,
         emp2_ID INT,
         from_date DATE,
         to_date DATE,
 
-        PRIMARY KEY (emp1_ID, emp2_ID),
+        PRIMARY KEY (Table_ID, emp1_ID, emp2_ID),
         FOREIGN KEY (emp1_ID) REFERENCES Employee(employee_ID),
         FOREIGN KEY (emp2_ID) REFERENCES Employee(employee_ID)
     );

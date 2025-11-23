@@ -603,6 +603,7 @@ BEGIN
         FROM Employee_Replace_Employee
         WHERE emp1_ID = @emp1_ID
           AND emp2_ID = @emp2_ID
+          AND GETDATE() BETWEEN from_date AND to_date
     )
         SET @Y = 1;
 
