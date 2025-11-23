@@ -184,8 +184,8 @@ CREATE FUNCTION Status_leaves
 RETURNS TABLE
 AS
 RETURN
-(
-    SELECT 
+    
+    (SELECT 
         L.request_ID,
         L.date_of_request,
         L.final_approval_status AS status
@@ -196,9 +196,9 @@ RETURN
         SELECT emp_ID, request_ID FROM Accidental_Leave
     ) AS StupidAh ON L.request_ID = StupidAh.request_ID
     WHERE StupidAh.emp_ID = @employee_ID
-      AND MONTH(L.date_of_request) = MONTH(CAST (GETDATE() AS DATE))
-      AND YEAR(L.date_of_request) = YEAR(CAST (GETDATE() AS DATE))
-);
+      AND MONTH(L.date_of_request) = MONTH(GETDATE())
+      AND YEAR(L.date_of_request) = YEAR(GETDATE())
+    );
 
 GO
 
@@ -483,7 +483,7 @@ BEGIN
     WHERE role_name = @replacer_role;
  
     IF (dbo.Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
-        AND @replacee_dept = @replacer_dept) AND dbo.ReplaceExist (@emp_ID, @replacement_ID) = 1 
+        AND @replacee_dept = @replacer_dept) 
     BEGIN
   UPDATE Employee_Approve_Leave
   SET status = 'approved' 
@@ -534,6 +534,7 @@ BEGIN
 INSERT INTO Performance VALUES(@rating, @comment, @semester, @employee_ID)
 END 
 GO
+
 --**helper functions**
 CREATE FUNCTION CheckIfMale(@employee_ID INT)
 RETURNS BIT
@@ -590,26 +591,5 @@ BEGIN
     RETURN @Y;
 END;
 GO
-
-
-CREATE FUNCTION ReplaceExist (@emp1_ID INT, @emp2_ID INT)
-RETURNS BIT
-AS
-BEGIN
-    DECLARE @Y BIT = 0;
-
-    IF EXISTS (
-        SELECT 1
-        FROM Employee_Replace_Employee
-        WHERE emp1_ID = @emp1_ID
-          AND emp2_ID = @emp2_ID
-          AND GETDATE() BETWEEN from_date AND to_date
-    )
-        SET @Y = 1;
-
-    RETURN @Y;
-END;
-GO
-
 
 --TODO: Handle unpaid leave submission and unpaid leave approval as I have a lot of questions about how they work 
