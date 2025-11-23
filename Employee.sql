@@ -485,13 +485,15 @@ BEGIN
     IF (dbo.Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
         AND @replacee_dept = @replacer_dept) AND dbo.ReplaceExist (@emp_ID, @replacement_ID) = 1 
     BEGIN
-    INSERT INTO Employee_Approve_Leave
-     VALUES(@Upperboard_ID, @request_ID, 'approved');
+  UPDATE Employee_Approve_Leave
+  SET status = 'approved' 
+  WHERE emp1_ID = @Upperboard_ID AND leave_ID = @request_ID 
     END
     ELSE
     BEGIN
-        INSERT INTO Employee_Approve_Leave
-        VALUES(@Upperboard_ID, @request_ID, 'rejected');
+         UPDATE Employee_Approve_Leave
+  SET status = 'approved' 
+  WHERE emp1_ID = @Upperboard_ID AND leave_ID = @request_ID 
     END
     END 
     ELSE 
@@ -500,6 +502,7 @@ BEGIN
     END
 END
 GO
+
 --unfinished, kinda ignore for now
 CREATE PROC Upperboard_approve_unpaids
 @request_ID INT,
