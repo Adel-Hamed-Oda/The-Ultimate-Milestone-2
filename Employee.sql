@@ -608,10 +608,6 @@ AS
 BEGIN
     DECLARE @employee_ID INT;
 
-    IF (@role_name LIKE 'HR_Representative_%') BEGIN
-        SELECT @department_name = SUBSTRING(@role_name, 19, LEN(@role_name) - 18);
-    END 
-
     SELECT TOP 1 @employee_ID = E.employee_ID
     FROM Employee AS E
     INNER JOIN Employee_Role AS ER ON E.employee_ID = ER.emp_ID

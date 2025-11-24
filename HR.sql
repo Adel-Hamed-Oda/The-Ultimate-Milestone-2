@@ -279,9 +279,18 @@ END;
 
 GO
 
+-- we are skipping any part-time employees, as YOU never mentioned any amount of time required
+-- for part-time employees
 CREATE PROC Deduction_hours
     @employee_ID INT
 AS
+
+    IF EXISTS (
+        SELECT *
+        FROM Employee E
+        WHERE E.employee_ID = @employee_ID
+          AND E.type_of_contract = 'part_time'
+    ) RETURN;
 
     DECLARE @attendance_ID INT = -1;
     SELECT TOP (1) 
@@ -296,9 +305,27 @@ AS
 
     IF @attendance_ID <> -1 BEGIN
 
-        -- TODO: IDK what the amount is, neither the status
-        INSERT INTO Deduction (emp_ID, [date], type, attendance_ID)
-        VALUES (@employee_ID, CAST(GETDATE() AS DATE), 'missing hours', @attendance_ID);
+        DECLARE @number_of_deducted_minutes INT;
+        SET @number_of_deducted_minutes = 
+            480 - (
+                SELECT total_duration
+                FROM Attendance
+                WHERE attendance_ID = @attendance_ID
+            );
+
+        DECLARE @salary DECIMAL(10,10),
+                @rate_per_hour DECIMAL(10,10);
+        SELECT @salary = salary
+        FROM Employee
+        WHERE employee_ID = @employee_ID;
+        SET @rate_per_hour = (@salary / 22) / 8;
+        
+        DECLARE @deduction_amount DECIMAL(10,2);
+        SET @deduction_amount = 
+            (@rate_per_hour * (@number_of_deducted_minutes / 60.0));
+
+        INSERT INTO Deduction (emp_ID, [date], amount, type, status, attendance_ID)
+        VALUES (@employee_ID, CAST(GETDATE() AS DATE), @deduction_amount, 'missing hours', 'pending', @attendance_ID);
 
     END;
 

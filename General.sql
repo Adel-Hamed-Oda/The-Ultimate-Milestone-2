@@ -200,13 +200,20 @@ GO
 --                          EXTRA PROC
 ----------------------------------------------------------------
 
--- TODO: probably going delete this
+-- TODO: probably going turn this into a trigger
 CREATE PROC Update_All_Salaries AS
 
     UPDATE E
     SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
     FROM Employee E
     JOIN Employee_Role ER ON ER.emp_ID = E.employee_ID
-    JOIN Role R ON R.role_name = ER.role_name;
+    JOIN Role R ON R.role_name = ER.role_name
+    WHERE R.rank = (
+        SELECT MAX(R2.rank)
+        FROM Employee_Role ER2
+        JOIN Role R2 ON ER2.role_name = R2.role_name
+        WHERE ER2.emp_ID = E.employee_ID
+    );
+
 
 GO
