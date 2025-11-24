@@ -25,7 +25,7 @@ END;
 
 GO
 
--- TODO: for every approval here, ensure that the current date is before the start date, as otherwise it wouldn't
+-- --this todo should be done TODO: for every approval here, ensure that the current date is before the start date, as otherwise it wouldn't
 -- make sense to approve that request
 CREATE PROCEDURE HR_approval_an_acc
     @request_ID INT,
@@ -75,6 +75,8 @@ AS
     SELECT @startdate = L.start_date, @enddate = L.end_date
     FROM Leave L
     WHERE L.request_ID = @request_ID
+    IF (@startdate IS NULL OR CAST(GETDATE() AS DATE) >= @startdate)
+        RETURN; -- If start date is null or current date is past start date, just return
 
     -- Logic for Annual Leave
     IF (@type = 'annual')
@@ -94,6 +96,10 @@ AS
             SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
         ELSE
             SET @availcheck = 0
+        
+    
+
+
 
         -- Checking for approvals
         IF (NOT EXISTS (
@@ -204,7 +210,9 @@ GO
 
 CREATE PROCEDURE HR_approval_unpaid
     @request_ID INT,
-    @HR_ID INT
+    @HR_ID INT,
+    @startdate DATE,
+    @enddate DATE
 AS
 BEGIN
 
@@ -223,7 +231,13 @@ BEGIN
             @yearcheck BIT,
             @maxdurationcheck BIT,
             @approvalcheck BIT
+    
+    SELECT @startdate = L.start_date, @enddate = L.end_date
+    FROM Leave L
+    WHERE L.request_ID = @request_ID;
 
+    IF (@startdate IS NULL OR CAST(GETDATE() AS DATE) >= @startdate)
+        RETURN;
     SET @myid = dbo.getIDrequesterUNPAID(@request_ID)
 
     -- If im part time i cant get unpaid leave
@@ -517,6 +531,13 @@ BEGIN
             @startdate DATE,
             @enddate DATE;
 
+
+    SELECT @startdate = L.start_date, @enddate = L.end_date
+    FROM dbo.Leave L
+    WHERE L.request_ID = @request_ID;
+
+    IF (@startdate IS NULL OR CAST(GETDATE() AS DATE) >= @startdate)
+        RETURN;
     SET @myid = dbo.getIDrequesterCOMP(@request_ID)
 
     -- Checks spent at least 8 hours on HIS dayoff, and request sent within same month (and year)
