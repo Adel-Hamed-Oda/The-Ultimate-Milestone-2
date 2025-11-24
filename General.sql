@@ -115,6 +115,7 @@ CREATE PROC clearAllTables AS
     DELETE FROM Employee_Phone;
     DELETE FROM Employee;
     DELETE FROM Department;
+    DELETE FROM Holiday; -- aref added this when checking cuz we drop it in dropAllTables but never clear it
 
 GO
 
@@ -177,7 +178,7 @@ CREATE VIEW allRejectedMedicals AS
     FROM Medical_Leave M
     JOIN Leave L ON M.request_ID = L.request_ID
     JOIN Employee E ON M.emp_ID = E.employee_ID
-    WHERE L.final_approval_status = 'Rejected';
+    WHERE L.final_approval_status = 'rejected';
 
 GO
 
