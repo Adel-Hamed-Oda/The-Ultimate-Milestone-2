@@ -2,7 +2,9 @@ USE test;
 
 GO
 
+-- TODO: decide wether it is < or <=
 CREATE PROC Update_Status_Doc AS
+    
     UPDATE Document
     SET status = 'expired'
     WHERE expiry_date < CAST(GETDATE() AS DATE);
@@ -10,6 +12,7 @@ CREATE PROC Update_Status_Doc AS
 GO
 
 CREATE PROC Remove_Deductions AS
+    
     DELETE FROM Deduction
     WHERE emp_ID IN (
         SELECT employee_ID
