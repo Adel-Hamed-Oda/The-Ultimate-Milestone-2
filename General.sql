@@ -215,5 +215,25 @@ CREATE PROC Update_All_Salaries AS
         WHERE ER2.emp_ID = E.employee_ID
     );
 
+GO
+
+-- TODO; check if it is correct
+CREATE PROC Finalize_Deductions AS
+    
+    UPDATE Payroll SET
+    deductions_amount = deductions_amount + ISNULL((
+            SELECT SUM(D.amount)
+            FROM Deduction D
+            WHERE D.date BETWEEN Payroll.start_date AND Payroll.end_date
+              AND D.status = 'pending'
+              AND D.emp_ID = Payroll.emp_ID), 0)
+    WHERE YEAR(Payroll.start_date) = YEAR(GETDATE())
+        AND MONTH(Payroll.start_date) = MONTH(GETDATE());
+
+    UPDATE Deduction SET
+    Deduction.status = 'finalized'
+    WHERE YEAR(D.date) = YEAR(GETDATE())
+        AND MONTH(D.date) = MONTH(GETDATE())
+        AND Deduction.status = 'pending';
 
 GO
