@@ -620,6 +620,31 @@ BEGIN
 
     RETURN @Y;
 END;
+
+GO
+
+CREATE FUNCTION GetHighestRankEmployee
+(
+    @department_name VARCHAR(50),
+    @role_name VARCHAR(50)
+)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @employee_ID INT;
+
+    SELECT TOP 1 @employee_ID = E.employee_ID
+    FROM Employee AS E
+    INNER JOIN Employee_Role AS ER ON E.employee_ID = ER.emp_ID
+    INNER JOIN Role AS R ON ER.role_name = R.role_name
+    WHERE
+        (@department_name IS NULL OR E.dept_name = @department_name)
+        AND (@role_name IS NULL OR ER.role_name = @role_name)
+    ORDER BY R.rank ASC;
+
+    RETURN @employee_ID;
+END;
+
 GO
 
 --TODO: Handle unpaid leave submission and unpaid leave approval as I have a lot of questions about how they work 

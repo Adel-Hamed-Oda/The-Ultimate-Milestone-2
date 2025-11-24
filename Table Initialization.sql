@@ -324,3 +324,5 @@ BEGIN
         accidental_balance
     FROM inserted;
 END;
+
+GO
