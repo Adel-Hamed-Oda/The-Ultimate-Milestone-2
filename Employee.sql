@@ -640,6 +640,7 @@ BEGIN
     WHERE
         (@department_name IS NULL OR E.dept_name = @department_name)
         AND (@role_name IS NULL OR ER.role_name = @role_name)
+        AND dbo.Is_On_Leave(E.employee_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
     ORDER BY R.rank ASC;
 
     RETURN @employee_ID;

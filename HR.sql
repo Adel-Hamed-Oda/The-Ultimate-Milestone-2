@@ -4,7 +4,6 @@ AS
 BEGIN
     DECLARE @b BIT
 
-    -- 
     IF (EXISTS (
         SELECT E.*
         FROM Employee E
@@ -21,6 +20,8 @@ END;
 
 GO
 
+-- TODO: for every approval here, ensure that the current date is before the start date, as otherwise it wouldn't
+-- make sense to approve that request
 CREATE PROCEDURE HR_approval_an_acc
     @request_ID INT,
     @HR_ID INT
