@@ -319,31 +319,6 @@ GO
 ---------------------------------------------------------
 -- Submit_medical
 ---------------------------------------------------------
-CREATE PROC Submit_accidental
-@employee_ID INT, 
-@start_date DATE, 
-@end_date DATE
-AS
-BEGIN 
-IF @start_date <> @end_date
-    PRINT 'Error! Accidental leave must be for 1 day only'
-ELSE 
-BEGIN
-    INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
-    VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
-
-    DECLARE @request_id INT = SCOPE_IDENTITY();
-
-    INSERT INTO Accidental_Leave(request_ID, emp_ID)
-    VALUES(@request_id, @employee_ID);
-END
-END 
-GO
-
-
----------------------------------------------------------
--- Submit_medical
----------------------------------------------------------
 CREATE PROC Submit_medical
 @employee_ID INT, 
 @start_date DATE, 

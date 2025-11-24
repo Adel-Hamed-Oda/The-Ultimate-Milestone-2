@@ -1,4 +1,9 @@
-﻿CREATE FUNCTION [HRLoginValidation] (@employee_ID INT, @password VARCHAR(50))
+﻿--TESTING
+USE test;
+
+GO
+
+CREATE FUNCTION [HRLoginValidation] (@employee_ID INT, @password VARCHAR(50))
 RETURNS BIT
 AS
 BEGIN

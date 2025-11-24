@@ -47,6 +47,7 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP FUNCTION IF EXISTS isNotPartTime;
     DROP FUNCTION IF EXISTS getIDrequesterUNPAID;
     DROP FUNCTION IF EXISTS getIDrequesterCOMP;
+    DROP FUNCTION IF EXISTS GetHighestRankEmployee;
 
     DROP VIEW IF EXISTS allEmployeeProfiles;
     DROP VIEW IF EXISTS NoEmployeeDept;
@@ -90,11 +91,6 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS Update_All_Salaries; -- TODO: probably going to delete this
 
     DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
-
-GO
-
---TESTING
-EXEC dropAllProceduresFunctionsViews;
 
 GO
 

@@ -1,3 +1,7 @@
+USE test;
+
+GO
+
 CREATE PROC Update_Status_Doc AS
     UPDATE Document
     SET status = 'expired'
