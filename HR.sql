@@ -227,7 +227,7 @@ BEGIN
     SET @myid = dbo.getIDrequesterUNPAID(@request_ID)
 
     -- If im part time i cant get unpaid leave
-    SET @parttimecheck = dbo.isPartTime(@myid)
+    SET @parttimecheck = dbo.isNotPartTime(@myid)
 
     -- Checks for max one approved unpaid leave per year
     SET @year = dbo.GetRequestYear(@request_ID)

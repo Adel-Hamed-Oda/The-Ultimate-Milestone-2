@@ -219,7 +219,7 @@ CREATE PROC Submit_annual
     @end_date DATE 
 AS 
 BEGIN
-    IF dbo.CheckIfPartTime(@employee_id) = 0
+    IF dbo.isNotPartTime(@employee_id) = 1
     BEGIN
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
@@ -608,6 +608,10 @@ AS
 BEGIN
     DECLARE @employee_ID INT;
 
+    IF (@role_name LIKE 'HR_Representative_%') BEGIN
+        SELECT @department_name = SUBSTRING(@role_name, 19, LEN(@role_name) - 18);
+    END 
+
     SELECT TOP 1 @employee_ID = E.employee_ID
     FROM Employee AS E
     INNER JOIN Employee_Role AS ER ON E.employee_ID = ER.emp_ID
@@ -622,5 +626,9 @@ BEGIN
 END;
 
 GO
+
+SELECT E.first_name 
+FROM Employee E
+WHERE E.employee_id = dbo.GetHighestRankEmployee(NULL, 'President');
 
 --TODO: Handle unpaid leave submission and unpaid leave approval as I have a lot of questions about how they work 

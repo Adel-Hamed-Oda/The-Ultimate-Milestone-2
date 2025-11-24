@@ -65,6 +65,8 @@ CREATE PROC createAllTables AS
         accidental_balance INT,
 
         PRIMARY KEY (role_name),
+
+        CHECK(role_name LIKE 'HR_Representative_%')
     );
 
     -- 5. Employee_Role
@@ -272,57 +274,5 @@ CREATE PROC createAllTables AS
 
         CHECK (LOWER(status) IN ('approved', 'rejected', 'pending'))
     );
-
-GO
-
--- TESTING
-EXEC createAllTables;
-
-GO
-
-CREATE TRIGGER trg_InsertEmployeeRole
-ON Role
-INSTEAD OF INSERT
-AS
-BEGIN
-    -- If any inserted HR_Representative_* has an invalid department suffix,
-    -- skip inserting all of them
-    IF EXISTS (
-        SELECT *
-        FROM inserted i
-        WHERE i.role_name LIKE 'HR_Representative_%'
-          AND SUBSTRING(i.role_name, 19, LEN(i.role_name) - 18)
-              NOT IN (SELECT name FROM Department)
-    )
-    BEGIN
-        -- error message for debugging we can delete it later 
-        PRINT 'Invalid HR Representative role_name: does not exist.';
-        RETURN;
-    END;
-
-    -- Otherwise insert 
-    INSERT INTO Role (
-        role_name,
-        title,
-        description,
-        rank,
-        base_salary,
-        percentage_YOE,
-        percentage_overtime,
-        annual_balance,
-        accidental_balance
-    )
-    SELECT
-        role_name,
-        title,
-        description,
-        rank,
-        base_salary,
-        percentage_YOE,
-        percentage_overtime,
-        annual_balance,
-        accidental_balance
-    FROM inserted;
-END;
 
 GO
