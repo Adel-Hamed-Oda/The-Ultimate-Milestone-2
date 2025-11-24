@@ -25,7 +25,7 @@ END;
 
 GO
 
--- --this todo should be done TODO: for every approval here, ensure that the current date is before the start date, as otherwise it wouldn't
+-- --this todo should be done --TODO: for every approval here, ensure that the current date is before the start date, as otherwise it wouldn't
 -- make sense to approve that request
 CREATE PROCEDURE HR_approval_an_acc
     @request_ID INT,
