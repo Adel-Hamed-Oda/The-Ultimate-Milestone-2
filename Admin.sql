@@ -2,12 +2,11 @@ USE test;
 
 GO
 
--- TODO: decide wether it is < or <=
 CREATE PROC Update_Status_Doc AS
     
     UPDATE Document
     SET status = 'expired'
-    WHERE expiry_date < CAST(GETDATE() AS DATE);
+    WHERE expiry_date <= CAST(GETDATE() AS DATE);
 
 GO
 
@@ -80,7 +79,6 @@ CREATE PROC Initiate_Attendance AS
 
 GO
 
--- TODO: should I set it to 'attended' all the time
 CREATE PROC Update_Attendance
     @emp_ID INT,
     @check_in TIME,
@@ -117,7 +115,6 @@ CREATE PROC Remove_Holiday AS
 
 GO
 
---TODO: not sure how to compare the dates correctly
 CREATE PROC Remove_DayOff
     @emp_ID INT
 AS

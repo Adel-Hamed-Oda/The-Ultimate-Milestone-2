@@ -89,6 +89,7 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS dropAllTables;
     DROP PROCEDURE IF EXISTS clearAllTables;
     DROP PROCEDURE IF EXISTS Update_All_Salaries; -- TODO: probably going to delete this
+    DROP PROCEDURE IF EXISTS Finalize_Deductions; -- TODO: probably going to delete this
 
     DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
     -- if the description was better we could've evaded this
