@@ -219,38 +219,112 @@ CREATE PROC Submit_annual
     @end_date DATE 
 AS 
 BEGIN
-    IF dbo.isNotPartTime(@employee_id) = 1
+    IF dbo.CheckIfPartTime(@employee_id) = 0
     BEGIN
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+        
+        DECLARE @dept_name VARCHAR(50); 
+        SELECT @dept_name = dept_name
+        FROM dbo.Employee 
+        WHERE employee_ID = @employee_id;
+
+        IF @dept_name = 'Medical' 
+        BEGIN
+        DECLARE @HR INT
+        IF EXISTS(SELECT @HR = E.emp_ID FROM Employee_Role E INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name  WHERE R.department_name = 'HR' AND dbo.Is_On_Leave(E.emp_ID,CAST (GETDATE() AS DATE),CAST (GETDATE() AS DATE)) = 0 )
+        BEGIN
+         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
         DECLARE @request_id INT = SCOPE_IDENTITY();
 
         INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
         VALUES (@request_id, @employee_id, @replacement_emp);
-
-        DECLARE @dept_name VARCHAR(50); 
-        SELECT @dept_name = dept_name
-        FROM dbo.Employee 
-        WHERE employee_ID = @employee_id;
-
-        -- this is because Nour said she would handle insertions into employee_approve_leave for HR and medical
-        IF @dept_name = 'Medical' OR @dept_name = 'HR'
-        BEGIN
-            RETURN;
+        INSERT INTO Employee_Approve_Leave VALUES(@HR, @request_id, 'pending') 
+        
         END
         ELSE 
+        PRINT 'Error! No HR representative available to approve you!'
+          
+        END
+        ELSE 
+        BEGIN   
+        IF @dept_name = 'HR' 
         BEGIN
+        DECLARE @HR_manager INT
+        IF EXISTS(SELECT @HR = E.emp_ID FROM Employee_Role E INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name  WHERE R.role_name = 'HR Manager' AND dbo.Is_On_Leave(E.emp_ID,CAST (GETDATE() AS DATE),CAST (GETDATE() AS DATE)) = 0 )
+        BEGIN 
+         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+        VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
+
+        DECLARE @request_id INT = SCOPE_IDENTITY();
+
+        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
+        VALUES (@request_id, @employee_id, @replacement_emp);
+        END
+         INSERT INTO Employee_Approve_Leave VALUES(@HR, @request_id, 'pending')
+          ELSE 
+          PRINT 'Error! No HR manager available to approve you!'
+        END
+        END
+             SELECT @hr_rep = E.emp_ID
+                FROM dbo.Employee_Role E 
+                INNER JOIN dbo.Role_existsIn_Department R ON E.role_name = R.role_name
+                WHERE E.role_name LIKE 'HR_Representative%' and SUBSTRING(
+        E.role_name,
+        CHARINDEX('_', E.role_name, CHARINDEX('_', E.role_name) + 1) + 1,
+        LEN(E.role_name)
+      ) = @dept_name 
+      IF dbo.Is_On_Leave (@hr_rep, CAST(GETDATE() AS DATE, CAST(GETDATE() AS DATE)) = 1
+      RETURN;
+      ELSE 
+      BEGIN     
             IF dbo.Check_DeanOR_Vice(@employee_id) = 1
             BEGIN
+            
                 DECLARE @president_ID INT;
-
                 SELECT @president_ID = emp_ID
                 FROM dbo.Employee_Role 
-                WHERE LOWER(role_name) = 'president';
+                WHERE LOWER(role_name) = 'President';
+                DECLARE @hr_rep INT;
+               
 
-                INSERT INTO Employee_Approve_Leave 
+                IF dbo.Is_On_Leave (@president_ID, CAST(GETDATE() AS DATE, CAST(GETDATE() AS DATE)) = 0 
+                BEGIN
+                
+                INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+                VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
+
+        DECLARE @request_id INT = SCOPE_IDENTITY();
+
+        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
+        VALUES (@request_id, @employee_id, @replacement_emp);
+         INSERT INTO Employee_Approve_Leave 
                 VALUES(@president_ID, @request_id, 'pending');
+                INSERT INTO Employee_Approve_Leave 
+                VALUES(@hr_rep, @request_id, 'pending');
+            END 
+        ELSE 
+        BEGIN
+                DECLARE @vice_president_ID INT;
+                SELECT @vice_president_ID = emp_ID
+                FROM dbo.Employee_Role 
+                WHERE LOWER(role_name) = 'Vice President';
+        IF dbo.Is_On_Leave (@vice_president_ID, CAST(GETDATE() AS DATE, CAST(GETDATE() AS DATE)) = 0 
+                BEGIN
+               
+                 INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+                  VALUES(CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
+
+        DECLARE @request_id INT = SCOPE_IDENTITY();
+
+        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
+        VALUES (@request_id, @employee_id, @replacement_emp);
+         INSERT INTO Employee_Approve_Leave 
+                VALUES(@vice_president_ID, @request_id, 'pending');
+                 INSERT INTO Employee_Approve_Leave 
+                VALUES(@hr_rep, @request_id, 'pending');
+            END 
+            END
             END 
             ELSE
             BEGIN
@@ -260,8 +334,9 @@ BEGIN
                 INNER JOIN dbo.Role_existsIn_Department R ON E.role_name = R.role_name
                 WHERE R.department_name = @dept_name 
                   AND E.role_name = 'Dean';
+               
 
-                IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+                IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0 AND  dbo.Is_On_Leave(@hr_rep, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
                 BEGIN
                     INSERT INTO Employee_Approve_Leave 
                     VALUES(@dean_ID, @request_id, 'pending');
@@ -281,12 +356,14 @@ BEGIN
             END
         END
     END
+    END 
     ELSE 
     BEGIN
         PRINT 'Error! Part-time employees cannot apply for annual leave';
     END
 END
 GO
+
 
 ---------------------------------------------------------
 -- Submit_accidental
@@ -483,8 +560,19 @@ BEGIN
     SELECT @replacer_dept = department_name
     FROM Role_existsIn_Department
     WHERE role_name = @replacer_role;
- 
-    IF (dbo.Is_On_Leave(@replacement_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
+
+    DECLARE @start_date DATE 
+    SELECT @start_date = L.start_date 
+    FROM Leave L 
+    WHERE request_ID = @request_ID
+
+    DECLARE @end_date DATE 
+    SELECT @end_date = L.start_date 
+    FROM Leave L 
+    WHERE request_ID = @request_ID
+
+
+    IF (dbo.Is_On_Leave(@replacement_ID,  @start_date, @end_date) = 0
         AND @replacee_dept = @replacer_dept) 
     BEGIN
   UPDATE Employee_Approve_Leave
@@ -504,6 +592,7 @@ BEGIN
     END
 END
 GO
+
 
 --unfinished, kinda ignore for now
 CREATE PROC Upperboard_approve_unpaids
