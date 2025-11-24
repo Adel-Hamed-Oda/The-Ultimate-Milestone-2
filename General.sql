@@ -91,6 +91,8 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS Update_All_Salaries; -- TODO: probably going to delete this
 
     DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
+    -- if the description was better we could've evaded this
+    -- but we at GUC are VERY inclusive
 
 GO
 
@@ -163,21 +165,15 @@ CREATE VIEW allPerformance AS
 
 GO
 
+-- TODO: should I add the Leave details too?
 CREATE VIEW allRejectedMedicals AS
 
     SELECT 
-        M.request_ID,
-        M.emp_ID,
-        E.first_name,
-        E.last_name,
-        M.insurance_status,
-        M.disability_details,
-        M.type,
-        L.final_approval_status
+        M.*
     FROM Medical_Leave M
     JOIN Leave L ON M.request_ID = L.request_ID
     JOIN Employee E ON M.emp_ID = E.employee_ID
-    WHERE L.final_approval_status = 'Rejected';
+    WHERE L.final_approval_status = 'rejected';
 
 GO
 
