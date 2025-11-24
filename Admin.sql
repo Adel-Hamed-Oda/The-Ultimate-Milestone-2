@@ -157,6 +157,7 @@ CREATE PROC Replace_Employee
     @from_date DATE,
     @to_date DATE
 AS
+
     INSERT INTO Employee_Replace_Employee (Emp1_ID, Emp2_ID, from_date, to_date)
     VALUES (@Emp1_ID, @Emp2_ID, @from_date, @to_date);
 
