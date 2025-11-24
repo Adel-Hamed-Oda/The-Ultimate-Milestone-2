@@ -67,7 +67,7 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS Remove_Approved_Leaves;
     DROP PROCEDURE IF EXISTS Replace_Employee;
 
-    DROP PROCEDURE IF EXISTS HR_Approval_an_acc;
+    DROP PROCEDURE IF EXISTS HR_approval_an_acc;
     DROP PROCEDURE IF EXISTS HR_approval_unpaid;
     DROP PROCEDURE IF EXISTS HR_approval_comp;
    
