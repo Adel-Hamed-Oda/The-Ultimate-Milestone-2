@@ -136,7 +136,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'approved'
+            SET [status] = 'approved'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
 
@@ -149,7 +149,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'rejected'
+            SET [status] = 'rejected'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
         END
@@ -199,7 +199,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'approved'
+            SET [status] = 'approved'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
         END
@@ -210,7 +210,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'rejected'
+            SET [status] = 'rejected'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
         END
@@ -290,7 +290,7 @@ BEGIN
         WHERE request_ID = @request_ID
 
         UPDATE Employee_Approve_Leave
-        SET status = 'approved'
+        SET [status] = 'approved'
         WHERE Emp1_ID = @HR_ID 
             AND leave_id = @request_id
     END
@@ -301,7 +301,7 @@ BEGIN
         WHERE request_ID = @request_ID
 
         UPDATE Employee_Approve_Leave
-        SET status = 'rejected'
+        SET [status] = 'rejected'
         WHERE Emp1_ID = @HR_ID 
             AND leave_id = @request_id
     END
