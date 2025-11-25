@@ -63,9 +63,7 @@ CREATE PROC createAllTables AS
         annual_balance INT,
         accidental_balance INT,
 
-        PRIMARY KEY (role_name),
-
-        CHECK(role_name LIKE 'HR_Representative_%')
+        PRIMARY KEY (role_name)
     );
 
     -- 5. Employee_Role
@@ -85,7 +83,13 @@ CREATE PROC createAllTables AS
 
         PRIMARY KEY (department_name, role_name),
         FOREIGN KEY (department_name) REFERENCES Department(name),  -- fixed wrong table name according to the schema
-        FOREIGN KEY (role_name) REFERENCES Role(role_name)
+        FOREIGN KEY (role_name) REFERENCES Role(role_name),
+
+        CHECK (
+            department_name <> 'HR' 
+            OR role_name LIKE 'HR_Representative_%' 
+            OR role_name = 'HR Manager'
+        )
 
     );
 
@@ -279,6 +283,31 @@ GO
 -- Initialize the database by creating all tables so that the entire file is run at once
 EXEC createAllTables;
 
+GO
+
+CREATE TRIGGER trg_CalculateSalary
+    ON Employee_Role
+    AFTER INSERT, UPDATE
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+
+        -- Update the salary for employees who just had a role assigned or changed
+        UPDATE E
+        SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
+        FROM Employee E
+        -- Join with the 'inserted' table to only target affected employees
+        INNER JOIN inserted I ON E.employee_ID = I.emp_ID
+        -- Find the role details for the highest rank (lowest number) this employee now holds
+        INNER JOIN Role R ON R.rank = (
+            SELECT MIN(R2.rank)
+            FROM Employee_Role ER2
+            JOIN Role R2 ON ER2.role_name = R2.role_name
+            WHERE ER2.emp_ID = E.employee_ID
+        );
+    END;
+    GO
+
 -------------------------------------------------------
 -------------------------------------------------------
 --                      GENERAL
@@ -375,8 +404,7 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS createAllTables;
     DROP PROCEDURE IF EXISTS dropAllTables;
     DROP PROCEDURE IF EXISTS clearAllTables;
-    DROP PROCEDURE IF EXISTS Update_All_Salaries; -- TODO: probably going to delete this
-    DROP PROCEDURE IF EXISTS Finalize_Deductions; -- TODO: probably going to delete this
+    DROP TRIGGER IF EXISTS trg_CalculateSalary;
 
     DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
     -- if the description was better we could've evaded this
@@ -490,26 +518,6 @@ CREATE VIEW allEmployeeAttendance AS
     FROM Attendance A
     INNER JOIN Employee E ON A.emp_ID = E.employee_ID
     WHERE A.[date] = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
-
-GO
-
-----------------------------------------------------------------
---                          EXTRA PROC
-----------------------------------------------------------------
-
-CREATE PROC Update_All_Salaries AS
-
-    UPDATE E
-    SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
-    FROM Employee E
-    JOIN Employee_Role ER ON ER.emp_ID = E.employee_ID
-    JOIN [Role] R ON R.role_name = ER.role_name
-    WHERE R.rank = (
-        SELECT MIN(R2.rank)
-        FROM Employee_Role ER2
-        JOIN [Role] R2 ON ER2.role_name = R2.role_name
-        WHERE ER2.emp_ID = E.employee_ID
-    );
 
 GO
 
@@ -2114,10 +2122,8 @@ BEGIN
     WHERE emp_ID = @employee_ID;
 
 END
+
 GO
-
-
-
 ---------------------------------------------------------
 -- Submit_unpaid
 ---------------------------------------------------------

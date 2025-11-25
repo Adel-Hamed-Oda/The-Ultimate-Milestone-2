@@ -1,7 +1,4 @@
-USE test;
-go
-exec createAllTables
-------
+
 insert into Department (name,building_location)
 values ('MET','C building')
 insert into Department (name,building_location)
