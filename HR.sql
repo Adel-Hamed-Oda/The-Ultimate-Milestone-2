@@ -97,7 +97,7 @@ AS
 
         -- An employee cannot replace multiple others at the same time
         SET @avail2check = 
-            dbo.checkingifreplacingsomeoneelse(@HR_id,@startdate,@enddate)
+            dbo.checkingifreplacingsomeoneelse(@replacementemp, @startdate, @enddate)
 
         -- Checking for approvals
         IF (NOT EXISTS (
@@ -331,6 +331,7 @@ AS
         AND YEAR([date]) = YEAR(GETDATE())
         AND MONTH([date]) = MONTH(GETDATE())
         AND total_duration < 480
+        AND NOT EXISTS (SELECT 1 FROM Deduction D WHERE D.attendance_ID = Attendance.attendance_ID)
     ORDER BY [date];
 
     IF @attendance_ID <> -1 BEGIN
@@ -441,37 +442,30 @@ BEGIN
         -- risky bas IDC
         AND NOT EXISTS (
             SELECT 1 
-            FROM Deduction D 
-            WHERE D.unpaid_ID = UL.request_ID
+            FROM Deduction D
+            WHERE MONTH(D.[date]) = MONTH(GETDATE())
         );
 
-    -- if the end_date is not the same as the start_date this means it spans multiple months
-    IF (MONTH(@start_date) = MONTH(@end_date) AND YEAR(@start_date) = YEAR(@end_date)) BEGIN
+    IF @request_ID IS NULL
+        RETURN; -- No approved unpaid leave found for this employee this month that haven't already been handled
+
+    DECLARE @real_start_date DATE = 
+    LEAST(
+        @start_date,
+        CAST(DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1) AS DATE)
+    );
+    DECLARE @real_end_date DATE =
+    GREATEST(
+        @end_date,
+        CAST(EOMONTH(GETDATE()) AS DATE)
+    );
+    
+    DECLARE @days INT;
+
+    SET @days = DATEDIFF(DAY, @real_start_date, @real_end_date) + 1;
         
-        DECLARE @days INT;
-
-        SET @days = DATEDIFF(DAY, @start_date, @end_date) + 1;
-        
-        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
-        VALUES (@employee_ID, @start_date, @days * @daily_rate, 'unpaid', 'pending', @request_ID);
-
-    END ELSE IF (YEAR(@start_date) = YEAR(@end_date)) BEGIN
-        
-        DECLARE @days1 INT;
-
-        SET @days1 = DATEDIFF(DAY, @start_date, EOMONTH(@start_date)) + 1;
-
-        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
-        VALUES (@employee_ID, @start_date, @days1 * @daily_rate, 'unpaid', 'pending', @request_ID);
-
-        DECLARE @days2 INT;
-
-        SET @days2 = DATEDIFF(DAY, DATEFROMPARTS(YEAR(@end_date), MONTH(@end_date), 1), @end_date) + 1;
-
-        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
-        VALUES (@employee_ID, @start_date, @days2 * @daily_rate, 'unpaid', 'pending', @request_ID);
-
-    END -- otherwise it is illogical so we just return
+    INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
+    VALUES (@employee_ID, @start_date, @days * @daily_rate, 'unpaid', 'pending', @request_ID);
 
 END
 
@@ -526,6 +520,7 @@ CREATE PROCEDURE Add_Payroll
     @to_date DATE
 AS
 BEGIN
+
     DECLARE @salary DECIMAL(10,10),
             @bonus DECIMAL(10,10),
             @deductions DECIMAL(10,10);
@@ -708,13 +703,13 @@ BEGIN
         FROM Compensation_Leave
         WHERE request_ID = @request_ID
 
-        IF (@replacementemp IS NOT NULL) -- Is there anyone to even replace me
-            SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
-        ELSE
-            SET @availcheck = 0
+    IF (@replacementemp IS NOT NULL) -- Is there anyone to even replace me
+        SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
+    ELSE
+        SET @availcheck = 0
 
     SET @avail2check = 
-        dbo.checkingifsomeoneelseelse(@replacementemp,@startdate,@enddate)
+        dbo.checkingifreplacingsomeoneelse(@replacementemp,@startdate,@enddate)
 
     -- Final check
     IF (@availcheck = 1 AND @avail2check = 1 AND @spentcheck = 1 AND @reasoncheck = 1)
@@ -754,6 +749,9 @@ CREATE FUNCTION [checkingifreplacingsomeoneelse]
 RETURNS BIT
 AS
 BEGIN
+    IF @employee_id IS NULL
+        RETURN 0
+
     DECLARE @check BIT
 
     IF EXISTS (
