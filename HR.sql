@@ -348,7 +348,7 @@ AS
         SET @deduction_amount = 
             (@rate_per_hour * (@number_of_deducted_minutes / 60.0));
 
-        INSERT INTO Deduction (emp_ID, [date], amount, type, status, attendance_ID)
+        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], attendance_ID)
         VALUES (@employee_ID, CAST(GETDATE() AS DATE), @deduction_amount, 'missing hours', 'pending', @attendance_ID);
 
     END;
@@ -378,7 +378,7 @@ BEGIN
                 (employee_id,
                  date,
                  amount,
-                 type,
+                 [type],
                  status,
                  unpaid_ID,
                  attendance_ID)
