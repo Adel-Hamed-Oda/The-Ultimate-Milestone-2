@@ -2078,14 +2078,8 @@ BEGIN
     FROM dbo.Employee
     WHERE employee_ID = @employee_ID;
 
-   /* IF @dept_name IS NULL
-    BEGIN
-        PRINT 'Error! Employee not found.';
-        RETURN;
-    END*/ --idek if we need this so i made it a comment
-
     ----------------------------------------------------------------
-    -- Case 1: HR employees -> any Medical employee + HR Manager approval
+    -- Case 1: HR employees -> Medical employee + HR Manager
     ----------------------------------------------------------------
     IF @dept_name = 'HR'
     BEGIN
@@ -2126,21 +2120,20 @@ BEGIN
                (@HR_Manager, @request_id, 'pending');
 
         UPDATE Document 
-        SET medical_ID = @request_id, description = @document_description, file_name = @file_name
-        WHERE emp_ID = @employee_ID;
+        SET medical_ID = @request_id, description = @document_description
+        WHERE file_name = @file_name;
 
         RETURN;
     END
 
-
     ----------------------------------------------------------------
-    -- Case 2: Regular employees -> any Medical staff + HR representative of their department
+    -- Case 2: Regular employees -> Medical staff + HR representative
     ----------------------------------------------------------------
     DECLARE @medical_doctor INT;
     DECLARE @hr_rep INT;
 
     -- Any Medical employee
-    SELECT TOP 1 @Medical_Employee = E.emp_ID
+    SELECT TOP 1 @medical_doctor = E.emp_ID
     FROM Employee_Role E
     INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
     WHERE R.department_name = 'Medical'
@@ -2155,7 +2148,7 @@ BEGIN
                     CHARINDEX('_', E.role_name, CHARINDEX('_', E.role_name) + 1) + 1,
                     LEN(E.role_name)) = @dept_name;
 
-    IF @Medical_Employee IS NULL OR @hr_rep IS NULL 
+    IF @medical_doctor IS NULL OR @hr_rep IS NULL 
        OR dbo.Is_On_Leave(@hr_rep, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 1
     BEGIN
         PRINT 'Error! No approvers available (Medical staff or HR representative).';
@@ -2171,17 +2164,17 @@ BEGIN
     INSERT INTO Medical_Leave
     VALUES (@leave_id, @insurance_status, @disability_details, @type, @employee_ID);
 
+    -- 🔥 FIXED: replaced @request_id with @leave_id
     INSERT INTO Employee_Approve_Leave
-    VALUES (@medical_doctor, @request_id, 'pending'),
-           (@hr_rep, @request_id, 'pending');
+    VALUES (@medical_doctor, @leave_id, 'pending'),
+           (@hr_rep, @leave_id, 'pending');
 
     UPDATE Document 
-    SET medical_ID = @leave_id, description = @document_description, file_name = @file_name
-    WHERE emp_ID = @employee_ID;
-
+    SET medical_ID = @leave_id, description = @document_description
+    WHERE file_name = @file_name;
 END
-
 GO
+
 ---------------------------------------------------------
 -- Submit_unpaid
 ---------------------------------------------------------
