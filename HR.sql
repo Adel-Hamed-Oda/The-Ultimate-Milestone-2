@@ -315,13 +315,6 @@ CREATE PROC Deduction_hours
     @employee_ID INT
 AS
 
-    IF EXISTS (
-        SELECT *
-        FROM Employee E
-        WHERE E.employee_ID = @employee_ID
-          AND E.type_of_contract = 'part_time'
-    ) RETURN;
-
     DECLARE @attendance_ID INT = -1;
     SELECT TOP (1) 
         @attendance_ID = attendance_ID
