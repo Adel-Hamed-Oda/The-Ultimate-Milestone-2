@@ -186,7 +186,7 @@ CREATE VIEW allRejectedMedicals AS
     JOIN [Leave] L ON M.request_ID = L.request_ID
     WHERE L.final_approval_status = 'rejected';
 
-GOfixed 
+GO --fixed 
 
 CREATE VIEW allEmployeeAttendance AS
 
