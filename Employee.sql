@@ -727,21 +727,6 @@ AS
 BEGIN
 IF dbo.CheckIfPartTime(@employee_ID) = 0
 BEGIN
-    DECLARE @num_days INT = DATEDIFF(DAY, @start_date, @end_date) + 1;
-        IF @num_days > 30
-            RETURN;   -- duration too long, silently stop
-
-        DECLARE @req_year INT = YEAR(@start_date);
-
-        IF EXISTS (
-            SELECT 1
-            FROM Unpaid_Leave U
-            JOIN [Leave] L ON U.request_ID = L.request_ID
-            WHERE U.emp_ID = @employee_ID
-              AND L.final_approval_status = 'approved'
-              AND YEAR(L.date_of_request) = @req_year
-        )
-            RETURN;   -- already has an approved unpaid leave this year
 
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
@@ -762,6 +747,10 @@ BEGIN
         SELECT @dept_name = dept_name
         FROM Employee 
         WHERE employee_ID = @employee_ID;
+
+        -- TODO: probably remove this because they said you are not required to handle it, aka
+        -- you won't get a medical doctor as input, also this way is very risky, it's better to
+        -- return before inserting instead of deleting after
 
         --dont handle medical doctors
         IF EXISTS (
@@ -786,15 +775,11 @@ BEGIN
         WHERE LOWER(ER.role_name) = 'president'
           AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
 
-   
-
         DECLARE @hr_manager INT;
         SELECT @hr_manager = ER.emp_ID
         FROM Employee_Role ER
         WHERE ER.role_name = 'HR Manager'
           AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
-
-  
 
         DECLARE @dean_ID INT = NULL;
         DECLARE @vice_dean_ID INT = NULL;
