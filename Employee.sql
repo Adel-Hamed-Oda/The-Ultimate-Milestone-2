@@ -887,7 +887,7 @@ BEGIN
     ELSE
     BEGIN
          UPDATE Employee_Approve_Leave
-  SET status = 'approved' 
+  SET status = 'rejected' 
   WHERE emp1_ID = @Upperboard_ID AND leave_ID = @request_ID 
     END
     END 
