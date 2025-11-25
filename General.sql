@@ -130,7 +130,7 @@ CREATE VIEW allEmployeeProfiles AS
         last_name,
         gender,
         email,
-        address,
+        [address],
         years_of_experience,
         official_day_off,
         type_of_contract,

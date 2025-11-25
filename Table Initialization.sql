@@ -18,8 +18,8 @@ CREATE PROC createAllTables AS
         first_name VARCHAR(50),
         last_name VARCHAR(50),
         email VARCHAR(50),
-        password VARCHAR(50),
-        address VARCHAR(50),
+        [password] VARCHAR(50),
+        [address] VARCHAR(50),
         gender CHAR(1),
         official_day_off VARCHAR(50),
         years_of_experience INT,
@@ -129,7 +129,7 @@ CREATE PROC createAllTables AS
         request_ID INT,
         insurance_status BIT,
         disability_details VARCHAR(50),
-        type VARCHAR(50),
+        [type] VARCHAR(50),
         emp_ID INT,
 
         PRIMARY KEY (request_ID),
@@ -166,12 +166,12 @@ CREATE PROC createAllTables AS
     -- 13. Document
     CREATE TABLE Document (
         document_ID INT IDENTITY(1,1),
-        type VARCHAR(50),
-        description VARCHAR(50),
+        [type] VARCHAR(50),
+        [description] VARCHAR(50),
         file_name VARCHAR(50),
         creation_date DATE,
-        expiry_date DATE,
-        status VARCHAR(50),
+        [expiry_date] DATE,
+        [status] VARCHAR(50),
         emp_ID INT,
         medical_ID INT,
         unpaid_ID INT,
@@ -203,11 +203,11 @@ CREATE PROC createAllTables AS
     -- 15. Attendance
     CREATE TABLE Attendance (
         attendance_ID INT IDENTITY(1,1) ,
-        date DATE,
+        [date] DATE,
         check_in_time TIME,
         check_out_time TIME,
         total_duration AS DATEDIFF(minute, check_in_time, check_out_time),--TODO: check
-        status VARCHAR(50) DEFAULT 'absent',
+        [status] VARCHAR(50) DEFAULT 'absent',
         emp_ID INT,
 
         PRIMARY KEY (attendance_ID),
@@ -220,10 +220,10 @@ CREATE PROC createAllTables AS
     CREATE TABLE Deduction (
         deduction_ID INT IDENTITY(1,1),
         emp_ID INT,
-        date DATE,
+        [date] DATE,
         amount DECIMAL(10,2),
-        type VARCHAR(50),
-        status VARCHAR(50) DEFAULT 'pending',
+        [type] VARCHAR(50),
+        [status] VARCHAR(50) DEFAULT 'pending',
         unpaid_ID INT,
         attendance_ID INT,
 
@@ -266,7 +266,7 @@ CREATE PROC createAllTables AS
     CREATE TABLE Employee_Approve_Leave (
         emp1_ID INT,
         leave_ID INT,
-        status VARCHAR(50) DEFAULT 'pending',
+        [status] VARCHAR(50) DEFAULT 'pending',
 
         PRIMARY KEY (emp1_ID, leave_ID),
         FOREIGN KEY (emp1_ID) REFERENCES Employee(employee_ID),

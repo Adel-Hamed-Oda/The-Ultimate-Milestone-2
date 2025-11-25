@@ -5,7 +5,7 @@ GO
 CREATE PROC Update_Status_Doc AS
     
     UPDATE Document
-    SET status = 'expired'
+    SET [status] = 'expired'
     WHERE expiry_date <= CAST(GETDATE() AS DATE);
 
 GO
@@ -65,7 +65,7 @@ GO
 
 CREATE PROC Initiate_Attendance AS
     
-    INSERT INTO Attendance (emp_ID, [date], status)
+    INSERT INTO Attendance (emp_ID, [date], [status])
     SELECT 
         employee_ID, 
         CAST(GETDATE() AS DATE), 
@@ -90,12 +90,12 @@ AS
         WHERE [date] = CAST(GETDATE() AS DATE)
           AND emp_ID = @emp_ID
     ) BEGIN
-        INSERT INTO Attendance (emp_ID, [date], status, check_in_time, check_out_time)
+        INSERT INTO Attendance (emp_ID, [date], [status], check_in_time, check_out_time)
         VALUES (@emp_ID, CAST(GETDATE() AS DATE), 'attended', @check_in, @check_out);
         RETURN;
     END ELSE BEGIN
         UPDATE Attendance 
-        SET status = 'attended',
+        SET [status] = 'attended',
             check_in_time = @check_in,
             check_out_time = @check_out
         WHERE [date] = CAST(GETDATE() AS DATE)
@@ -121,7 +121,7 @@ AS
 
     DELETE FROM Attendance
     WHERE emp_ID = @emp_ID
-      AND status = 'absent'
+      AND [status] = 'absent'
       AND MONTH([date]) = MONTH(GETDATE())
       AND YEAR([date]) = YEAR(GETDATE())
       AND DATENAME(WEEKDAY, [date]) = (-- Compare weekday names 3ashan for example official_day_off is a VARCHAR(50) but we can also compare be turning days into numbers and comparing them
