@@ -727,10 +727,22 @@ AS
 BEGIN
 IF dbo.CheckIfPartTime(@employee_ID) = 0
 BEGIN
-    IF NOT EXISTS( SELECT 1 
-        FROM Unpaid_leave
-        WHERE emp_ID = @employee_ID)
-    BEGIN
+    DECLARE @num_days INT = DATEDIFF(DAY, @start_date, @end_date) + 1;
+        IF @num_days > 30
+            RETURN;   -- duration too long, silently stop
+
+        DECLARE @req_year INT = YEAR(@start_date);
+
+        IF EXISTS (
+            SELECT 1
+            FROM Unpaid_Leave U
+            JOIN [Leave] L ON U.request_ID = L.request_ID
+            WHERE U.emp_ID = @employee_ID
+              AND L.final_approval_status = 'approved'
+              AND YEAR(L.date_of_request) = @req_year
+        )
+            RETURN;   -- already has an approved unpaid leave this year
+
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
@@ -739,55 +751,128 @@ BEGIN
         INSERT INTO Unpaid_Leave(request_ID, emp_ID)
         VALUES (@request_id, @employee_ID);
 
-        INSERT INTO Employee_Approve_Leave VALUES(NULL,@request_id,'pending');
+        UPDATE Document
+        SET unpaid_ID = @request_id
+        WHERE description = @document_description
+          AND file_name  = @file_name
+          AND emp_ID     = @employee_ID;
 
-        UPDATE Document 
-        SET unpaid_ID = @request_id 
-        WHERE description = @document_description AND file_name = @file_name;
 
         DECLARE @dept_name VARCHAR(50);
         SELECT @dept_name = dept_name
         FROM Employee 
-        WHERE @employee_ID = employee_ID;
+        WHERE employee_ID = @employee_ID;
 
-        IF dbo.Check_DeanOR_Vice(@employee_ID) = 1
+        --dont handle medical doctors
+        IF EXISTS (
+            SELECT 1
+            FROM Employee_Role ER
+            WHERE ER.emp_ID   = @employee_ID
+              AND ER.role_name = 'Medical Doctor'
+        )
         BEGIN
-            DECLARE @president_ID INT;
-            SELECT @president_ID = emp_ID
-            FROM Employee_Role 
-            WHERE role_name = 'President';
+            -- Undo what we just inserted (no printing, just silent rollback)
+            DELETE FROM Employee_Approve_Leave WHERE leave_ID = @request_id;
+            DELETE FROM Unpaid_Leave           WHERE request_ID = @request_id;
+            DELETE FROM [Leave]                WHERE request_ID = @request_id;
+            RETURN;
+        END
 
-            INSERT INTO Employee_Approve_Leave VALUES(@president_ID,@request_id,'pending');
-        END 
+        
+
+        DECLARE @president_ID INT;
+        SELECT @president_ID = ER.emp_ID
+        FROM Employee_Role ER
+        WHERE LOWER(ER.role_name) = 'president'
+          AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
+
+   
+
+        DECLARE @hr_manager INT;
+        SELECT @hr_manager = ER.emp_ID
+        FROM Employee_Role ER
+        WHERE ER.role_name = 'HR Manager'
+          AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
+
+  
+
+        DECLARE @dean_ID INT = NULL;
+        DECLARE @vice_dean_ID INT = NULL;
+        DECLARE @approver_dean INT = NULL;
+
+        SELECT @dean_ID = ER.emp_ID
+        FROM Employee_Role ER
+        JOIN Role_existsIn_Department RD ON ER.role_name = RD.role_name
+        WHERE RD.department_name = @dept_name
+          AND ER.role_name = 'Dean'
+          AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
+
+        IF @dean_ID IS NOT NULL
+            SET @approver_dean = @dean_ID;
         ELSE
         BEGIN
-            DECLARE @dean_ID INT; 
-            SELECT @dean_ID = E.emp_ID 
-            FROM Employee_Role E 
-            INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-            WHERE R.department_name = @dept_name AND E.role_name = 'Dean';
+            SELECT @vice_dean_ID = ER.emp_ID
+            FROM Employee_Role ER
+            JOIN Role_existsIn_Department RD ON ER.role_name = RD.role_name
+            WHERE RD.department_name = @dept_name
+              AND ER.role_name = 'Vice Dean'
+              AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
 
-            IF dbo.Is_On_Leave(@dean_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0
-                INSERT INTO Employee_Approve_Leave VALUES(@dean_ID,@request_id,'pending');
-            ELSE 
-            BEGIN 
-                DECLARE @vice_dean_ID INT;
-                SELECT @vice_dean_ID = E.emp_ID 
-                FROM Employee_Role E 
-                INNER JOIN Role_existsIn_Department R ON E.role_name = R.role_name
-                WHERE R.department_name = @dept_name AND E.role_name = 'Vice Dean';
-
-                INSERT INTO Employee_Approve_Leave VALUES(@vice_dean_ID,@request_id,'pending');
-            END
+            SET @approver_dean = @vice_dean_ID;
         END
-    END 
-    ELSE 
-        PRINT 'Error! An employee is only allowed one unpaid leave per year';
-END 
-ELSE 
-    PRINT 'Error! Part-time employees cannot apply for unpaid leave';
-END 
+
+     
+        DECLARE @hr_rep INT;
+        SELECT @hr_rep = ER.emp_ID
+        FROM Employee_Role ER
+        JOIN Role_existsIn_Department RD ON ER.role_name = RD.role_name
+        WHERE ER.role_name LIKE 'HR_Representative_%'
+          AND SUBSTRING(
+                ER.role_name,
+                CHARINDEX('_', ER.role_name, CHARINDEX('_', ER.role_name) + 1) + 1,
+                LEN(ER.role_name)
+              ) = @dept_name
+          AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
+
+        -- Case 1: HR employee submits unpaid leave
+        IF @dept_name = 'HR'
+        BEGIN
+            IF @president_ID IS NULL OR @hr_manager IS NULL
+                RETURN; 
+
+            INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
+            VALUES (@president_ID, @request_id, 'pending'),
+                   (@hr_manager,  @request_id, 'pending');
+        END
+        ELSE IF dbo.Check_DeanOR_Vice(@employee_ID) = 1
+        BEGIN
+            -- Case 2: Employee is Dean or Vice Dean
+            IF @president_ID IS NULL OR @hr_rep IS NULL
+                RETURN;
+
+            INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
+            VALUES (@president_ID, @request_id, 'pending'),
+                   (@hr_rep,      @request_id, 'pending');
+        END
+        ELSE
+        BEGIN
+            -- Case 3: Regular employee
+            IF @approver_dean IS NULL OR @hr_rep IS NULL
+                RETURN;
+
+            INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
+            VALUES (@approver_dean, @request_id, 'pending'),
+                   (@hr_rep,        @request_id, 'pending');
+        END
+    END
+    ELSE
+    BEGIN
+        -- Part-time employee so do nothing 
+        RETURN;
+    END
+END
 GO
+
 
 
 ---------------------------------------------------------
