@@ -136,7 +136,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'approved'
+            SET [status] = 'approved'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
 
@@ -149,7 +149,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'rejected'
+            SET [status] = 'rejected'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
         END
@@ -199,7 +199,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'approved'
+            SET [status] = 'approved'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
         END
@@ -210,7 +210,7 @@ AS
             WHERE @request_ID = request_ID
 
             UPDATE Employee_Approve_Leave
-            SET status = 'rejected'
+            SET [status] = 'rejected'
             WHERE Emp1_ID = @HR_ID 
                 AND leave_id = @request_id
         END
@@ -290,7 +290,7 @@ BEGIN
         WHERE request_ID = @request_ID
 
         UPDATE Employee_Approve_Leave
-        SET status = 'approved'
+        SET [status] = 'approved'
         WHERE Emp1_ID = @HR_ID 
             AND leave_id = @request_id
     END
@@ -301,7 +301,7 @@ BEGIN
         WHERE request_ID = @request_ID
 
         UPDATE Employee_Approve_Leave
-        SET status = 'rejected'
+        SET [status] = 'rejected'
         WHERE Emp1_ID = @HR_ID 
             AND leave_id = @request_id
     END
@@ -376,10 +376,10 @@ BEGIN
 
     INSERT INTO Deduction
                 (employee_id,
-                 date,
+                 [date],
                  amount,
                  [type],
-                 status,
+                 [status],
                  unpaid_ID,
                  attendance_ID)
     SELECT @employee_ID,
@@ -537,7 +537,7 @@ BEGIN
     FROM Deduction
     WHERE emp_ID = @employee_ID
         AND date BETWEEN @from_date AND @to_date
-        AND status = 'pending';        -- not yet reflected in payroll
+        AND [status] = 'pending';        -- not yet reflected in payroll
 
     SET @deductions = ISNULL(@deductions, 0);
 
@@ -558,10 +558,10 @@ BEGIN
 
     -- Finalize deductions now that they are reflected
     UPDATE Deduction
-    SET status = 'finalized'
+    SET [status] = 'finalized'
     WHERE emp_ID = @employee_ID
       AND date BETWEEN @from_date AND @to_date
-      AND status = 'pending'
+      AND [status] = 'pending'
 END
 
 GO
@@ -721,7 +721,7 @@ BEGIN
         WHERE request_ID = @request_ID
 
         UPDATE Employee_Approve_Leave
-        SET status = 'approved'
+        SET [status] = 'approved'
         WHERE Emp1_ID = @HR_ID 
             AND leave_id = @request_id
 
@@ -734,7 +734,7 @@ BEGIN
         WHERE request_ID = @request_ID
 
         UPDATE Employee_Approve_Leave
-        SET status = 'rejected'
+        SET [status] = 'rejected'
         WHERE Emp1_ID = @HR_ID 
             AND leave_id = @request_id
     END
