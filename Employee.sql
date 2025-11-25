@@ -617,7 +617,7 @@ BEGIN
 IF dbo.CheckIfPartTime(@employee_ID) = 0
 BEGIN
 
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+        INSERT INTO Leave(date_of_request, [start_date], end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
         DECLARE @request_id INT = SCOPE_IDENTITY();
@@ -779,16 +779,16 @@ BEGIN
         END
 
     
-        INSERT INTO Leave  (date_of_request, start_date, end_date, final_approval_status)
+        INSERT INTO Leave (date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @compensation_date, @compensation_date, 'pending');
 
         DECLARE @request_ID INT;
         SELECT @request_ID = SCOPE_IDENTITY();
 
-        INSERT INTO Compensation_Leave
+        INSERT INTO Compensation_Leave (request_ID, reason, date_of_original_workday, emp_ID, replacement_emp)
         VALUES (@request_ID, @reason, @date_of_original_workday, @emp_ID, @replacement_emp);
 
-        INSERT INTO Employee_Approve_Leave
+        INSERT INTO Employee_Approve_Leave (emp1_ID, leave_ID, status)
         VALUES (@HR_manager, @request_ID, 'pending');
 
         RETURN;
