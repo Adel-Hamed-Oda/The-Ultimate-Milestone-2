@@ -186,14 +186,14 @@ CREATE VIEW allEmployeeAttendance AS
         A.emp_ID,
         E.first_name,
         E.last_name,
-        A.date,
+        A.[date],
         A.check_in_time,
         A.check_out_time,
         A.total_duration,
         A.status
     FROM Attendance A
     INNER JOIN Employee E ON A.emp_ID = E.employee_ID
-    WHERE A.date = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
+    WHERE A.[date] = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
 
 GO
 

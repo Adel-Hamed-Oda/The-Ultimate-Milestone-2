@@ -361,8 +361,121 @@ AS
 
 GO
 
--- TODO: Deduction_days
--- TODO: Deduction_unpaid
+CREATE PROCEDURE Deduction_days
+    @employee_ID INT
+AS
+BEGIN
+    DECLARE @mymonth  INT,
+            @myyear   INT,
+            @d        DECIMAL(10, 2),
+            @mysalary DECIMAL(10, 2)
+
+    SET @mymonth = MONTH(CURRENT_TIMESTAMP)
+    SET @myyear = YEAR(CURRENT_TIMESTAMP)
+
+    SELECT @mysalary = E.salary
+    FROM   Employee E
+    WHERE  E.employee_ID = @employee_ID
+
+    -- deduction is d per day
+    SET @d = @mysalary / 22
+
+    INSERT INTO Deduction
+                (employee_id,
+                 date,
+                 amount,
+                 type,
+                 status,
+                 unpaid_ID,
+                 attendance_ID)
+    SELECT @employee_ID,
+           CAST(CURRENT_TIMESTAMP AS DATE),
+           @d,
+           'missing_days',
+           'pending',
+           NULL,
+           A.attendance_ID
+    FROM   Attendance A
+    WHERE  MONTH(A.date) = @mymonth
+           AND YEAR(A.date) = @myyear
+           AND A.status = 'absent'
+           AND A.emp_ID = @employee_ID
+           AND NOT EXISTS (
+               SELECT *
+               FROM   Unpaid_Leave U,
+                      Leave L
+               WHERE  U.request_ID = L.request_ID
+                      AND U.emp_ID = @employee_ID
+                      AND A.date BETWEEN L.start_date AND L.end_date
+           )
+END
+
+GO
+
+CREATE PROCEDURE Deduction_unpaid
+    @employee_ID INT
+AS
+BEGIN
+    DECLARE @salary DECIMAL(10, 2);
+    SELECT @salary = salary
+    FROM Employee 
+    WHERE employee_ID = @employee_ID;
+
+    -- e7tyati
+    IF @salary IS NULL SET @salary = 0;
+
+    -- I assume that 22 means 22 working days, fa salary per day = total/22
+    DECLARE @daily_rate DECIMAL(10, 2);
+    SET @daily_rate = @salary / 22.0;
+
+    DECLARE @request_ID INT;
+    DECLARE @start_date DATE;
+    DECLARE @end_date DATE;
+
+    SELECT @request_ID = L.request_ID, @start_date = L.start_date, @end_date = L.end_date
+    FROM Leave L, Unpaid_Leave UL
+    WHERE UL.request_ID = L.request_ID
+        AND UL.emp_ID = @employee_ID
+        AND L.final_approval_status = 'approved'
+        -- TODO: if the deduction for this unpaid leave request already exists, skip it
+        -- risky bas IDC
+        AND NOT EXISTS (
+            SELECT 1 
+            FROM Deduction D 
+            WHERE D.unpaid_ID = UL.request_ID
+        );
+
+    -- if the end_date is not the same as the start_date this means it spans multiple months
+    IF (MONTH(@start_date) = MONTH(@end_date) AND YEAR(@start_date) = YEAR(@end_date)) BEGIN
+        
+        DECLARE @days INT;
+
+        SET @days = DATEDIFF(DAY, @start_date, @end_date) + 1;
+        
+        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
+        VALUES (@employee_ID, @start_date, @days * @daily_rate, 'unpaid', 'pending', @request_ID);
+
+    END ELSE IF (YEAR(@start_date) = YEAR(@end_date)) BEGIN
+        
+        DECLARE @days1 INT;
+
+        SET @days1 = DATEDIFF(DAY, @start_date, EOMONTH(@start_date)) + 1;
+
+        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
+        VALUES (@employee_ID, @start_date, @days1 * @daily_rate, 'unpaid', 'pending', @request_ID);
+
+        DECLARE @days2 INT;
+
+        SET @days2 = DATEDIFF(DAY, SOMONTH(@end_date), @end_date) + 1;
+
+        INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
+        VALUES (@employee_ID, @start_date, @days2 * @daily_rate, 'unpaid', 'pending', @request_ID);
+
+    END -- otherwise it is illogical so we just return
+
+END
+
+GO
 
 CREATE FUNCTION Bonus_amount (@employee_ID INT)
     RETURNS DECIMAL(10,2)
