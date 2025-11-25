@@ -25,8 +25,6 @@ END;
 
 GO
 
--- --this todo should be done --TODO: for every approval here, ensure that the current date is before the start date, as otherwise it wouldn't
--- make sense to approve that request
 CREATE PROCEDURE HR_approval_an_acc
     @request_ID INT,
     @HR_ID INT
@@ -96,10 +94,10 @@ AS
             SET @availcheck = dbo.Is_On_Leave(@replacementemp, @startdate, @enddate) -- Yes? check if he is avail
         ELSE
             SET @availcheck = 0
-        
-    
 
-
+        -- An employee cannot replace multiple others at the same time
+        SET @avail2check = 
+            dbo.checkingifreplacingsomeoneelse(@HR_id,@startdate,@enddate)
 
         -- Checking for approvals
         IF (NOT EXISTS (
@@ -127,7 +125,7 @@ AS
             SET @balancecheck = 1;
 
         -- Final Approval / Rejection for Annual
-        IF (@balancecheck = 1 AND @approvalcheck = 1 AND @parttimecheck = 1 AND @availcheck = 1)
+        IF (@balancecheck = 1 AND @approvalcheck = 1 AND @parttimecheck = 1 AND @availcheck = 1 AND @avail2check = 1)
         BEGIN
             UPDATE Employee
             SET annual_balance = annual_balance - @totaldays
@@ -137,7 +135,10 @@ AS
             SET final_approval_status = 'approved'
             WHERE @request_ID = request_ID
 
-            INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'approved')
+            UPDATE Employee_Approve_Leave
+            SET status = 'approved'
+            WHERE Emp1_ID = @HR_ID 
+                AND leave_id = @request_id
 
             INSERT INTO Employee_Replace_Employee VALUES (@myid, @replacementemp, @startdate, @enddate);
         END
@@ -147,7 +148,10 @@ AS
             SET final_approval_status = 'rejected'
             WHERE @request_ID = request_ID
 
-            INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'rejected')
+            UPDATE Employee_Approve_Leave
+            SET status = 'rejected'
+            WHERE Emp1_ID = @HR_ID 
+                AND leave_id = @request_id
         END
     END
     ELSE -- Logic for Accidental Leave
@@ -194,7 +198,10 @@ AS
             SET final_approval_status = 'approved'
             WHERE @request_ID = request_ID
 
-            INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'approved')
+            UPDATE Employee_Approve_Leave
+            SET status = 'approved'
+            WHERE Emp1_ID = @HR_ID 
+                AND leave_id = @request_id
         END
         ELSE
         BEGIN
@@ -202,7 +209,10 @@ AS
             SET final_approval_status = 'rejected'
             WHERE @request_ID = request_ID
 
-            INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'rejected')
+            UPDATE Employee_Approve_Leave
+            SET status = 'rejected'
+            WHERE Emp1_ID = @HR_ID 
+                AND leave_id = @request_id
         END
     END
 
@@ -279,7 +289,10 @@ BEGIN
         SET final_approval_status = 'approved'
         WHERE request_ID = @request_ID
 
-        INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'approved')
+        UPDATE Employee_Approve_Leave
+        SET status = 'approved'
+        WHERE Emp1_ID = @HR_ID 
+            AND leave_id = @request_id
     END
     ELSE
     BEGIN
@@ -287,7 +300,10 @@ BEGIN
         SET final_approval_status = 'rejected'
         WHERE request_ID = @request_ID
 
-        INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'rejected')
+        UPDATE Employee_Approve_Leave
+        SET status = 'rejected'
+        WHERE Emp1_ID = @HR_ID 
+            AND leave_id = @request_id
     END
 END;
 
@@ -527,6 +543,7 @@ BEGIN
             @reasoncheck BIT,
             @replacementemp INT,
             @availcheck BIT,
+            @avail2check BIT,
             -- added these to check for availability
             @startdate DATE,
             @enddate DATE;
@@ -583,14 +600,20 @@ BEGIN
         ELSE
             SET @availcheck = 0
 
+    SET @avail2check = 
+        dbo.checkingifsomeoneelseelse(@replacementemp,@startdate,@enddate)
+
     -- Final check
-    IF (@availcheck = 1 AND @spentcheck = 1 AND @reasoncheck = 1)
+    IF (@availcheck = 1 AND @avail2check = 1 AND @spentcheck = 1 AND @reasoncheck = 1)
     BEGIN
         UPDATE Leave
         SET final_approval_status = 'approved'
         WHERE request_ID = @request_ID
 
-        INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'approved')
+        UPDATE Employee_Approve_Leave
+        SET status = 'approved'
+        WHERE Emp1_ID = @HR_ID 
+            AND leave_id = @request_id
 
         INSERT INTO Employee_Replace_Employee VALUES (@myid, @replacementemp, @startdate, @enddate);
     END
@@ -600,8 +623,41 @@ BEGIN
         SET final_approval_status = 'rejected'
         WHERE request_ID = @request_ID
 
-        INSERT INTO Employee_Approve_Leave VALUES (@HR_ID, @request_ID, 'rejected')
+        UPDATE Employee_Approve_Leave
+        SET status = 'rejected'
+        WHERE Emp1_ID = @HR_ID 
+            AND leave_id = @request_id
     END
 END;
 
+GO
+
+CREATE FUNCTION [checkingifreplacingsomeoneelse]
+(
+    @employee_id INT,
+    @enddate     DATE,
+    @startdate   DATE
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @check BIT
+
+    IF EXISTS (
+        SELECT *
+        FROM   Employee_Replace_Employee E
+        WHERE  E.emp2_ID = @employee_id
+               AND (
+                   (E.from_date BETWEEN @startdate AND @enddate)
+                   OR (E.to_date BETWEEN @startdate AND @enddate)
+                   OR (@startdate BETWEEN E.from_date AND E.to_date)
+                   OR (@enddate BETWEEN E.from_date AND E.to_date)
+               )
+    )
+        SET @check = 0
+    ELSE
+        SET @check = 1
+
+    RETURN @check
+END
 GO
