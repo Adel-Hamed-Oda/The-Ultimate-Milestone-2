@@ -675,7 +675,11 @@ BEGIN
         WHERE LOWER(ER.role_name) = 'president'
           AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
 
-   
+        DECLARE @vice_president_ID INT;
+        SELECT @vice_president_ID = ER.emp_ID
+        FROM Employee_Role ER
+        WHERE LOWER(ER.role_name) = 'vice president'
+        AND dbo.Is_On_Leave(ER.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
 
         DECLARE @hr_manager INT;
         SELECT @hr_manager = ER.emp_ID
@@ -726,32 +730,42 @@ BEGIN
         -- Case 1: HR employee submits unpaid leave
         IF @dept_name = 'HR'
         BEGIN
-            IF @president_ID IS NULL OR @hr_manager IS NULL
-                RETURN; 
-
-            INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
-            VALUES (@president_ID, @request_id, 'pending'),
-                   (@hr_manager,  @request_id, 'pending');
-        END
-        ELSE IF dbo.Check_DeanOR_Vice(@employee_ID) = 1
-        BEGIN
-            -- Case 2: Employee is Dean or Vice Dean
-            IF @president_ID IS NULL OR @hr_rep IS NULL
+            IF @hr_manager IS NULL OR (@president_ID IS NULL AND @vice_president_ID IS NULL)
                 RETURN;
 
+            DECLARE @upperboard_hr INT;
+            SET @upperboard_hr = ISNULL(@president_ID, @vice_president_ID);
+
             INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
-            VALUES (@president_ID, @request_id, 'pending'),
-                   (@hr_rep,      @request_id, 'pending');
+            VALUES (@upperboard_hr, @request_id, 'pending'),
+                   (@hr_manager,   @request_id, 'pending');
+        END
+            -- Case 2: Employee is Dean or Vice Dean
+      ELSE IF dbo.Check_DeanOR_Vice(@employee_ID) = 1
+        BEGIN
+            IF @hr_rep IS NULL OR (@president_ID IS NULL AND @vice_president_ID IS NULL)
+                RETURN;
+
+            DECLARE @upperboard_dean INT;
+            SET @upperboard_dean = ISNULL(@president_ID, @vice_president_ID);
+
+            INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
+            VALUES (@upperboard_dean, @request_id, 'pending'),
+                   (@hr_rep,         @request_id, 'pending');
         END
         ELSE
         BEGIN
-            -- Case 3: Regular employee
-            IF @approver_dean IS NULL OR @hr_rep IS NULL
+            IF @approver_dean IS NULL OR @hr_rep IS NULL 
+               OR (@president_ID IS NULL AND @vice_president_ID IS NULL)
                 RETURN;
 
+            DECLARE @upperboard_regular INT;
+            SET @upperboard_regular = ISNULL(@president_ID, @vice_president_ID);
+
             INSERT INTO Employee_Approve_Leave(emp1_ID, leave_ID, status)
-            VALUES (@approver_dean, @request_id, 'pending'),
-                   (@hr_rep,        @request_id, 'pending');
+            VALUES (@approver_dean,       @request_id, 'pending'),  -- higher rank in dept
+                   (@upperboard_regular,  @request_id, 'pending'),  -- President or VP
+                   (@hr_rep,              @request_id, 'pending');  -- HR rep
         END
     END
     ELSE
