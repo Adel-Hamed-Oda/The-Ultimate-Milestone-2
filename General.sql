@@ -167,10 +167,10 @@ CREATE VIEW allPerformance AS
 
 GO
 
--- TODO: should I add the main Leave table details too?
 CREATE VIEW allRejectedMedicals AS
 
     SELECT 
+        L.*,
         M.*
     FROM Medical_Leave M
     JOIN Leave L ON M.request_ID = L.request_ID
