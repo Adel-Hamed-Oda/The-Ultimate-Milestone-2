@@ -385,7 +385,7 @@ BEGIN
                 (employee_id,
                  date,
                  amount,
-                 type,
+                 [type],
                  status,
                  unpaid_ID,
                  attendance_ID)
