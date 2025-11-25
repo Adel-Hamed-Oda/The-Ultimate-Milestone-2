@@ -257,7 +257,7 @@ BEGIN
     SET @year = dbo.GetRequestYear(@request_ID)
 
     IF @year > ISNULL((
-        SELECT MAX(YEAR(L.date_of_request)) AS latest_year
+        SELECT MAX(YEAR(L.[start_date])) AS latest_year
         FROM Unpaid_Leave U, Leave L
         WHERE U.request_ID = L.request_ID
           AND L.final_approval_status = 'approved'

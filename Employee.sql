@@ -616,21 +616,6 @@ AS
 BEGIN
 IF dbo.CheckIfPartTime(@employee_ID) = 0
 BEGIN
-    DECLARE @num_days INT = DATEDIFF(DAY, @start_date, @end_date) + 1;
-        IF @num_days > 30
-            RETURN;   -- duration too long, silently stop
-
-        DECLARE @req_year INT = YEAR(@start_date);
-
-        IF EXISTS (
-            SELECT 1
-            FROM Unpaid_Leave U
-            JOIN [Leave] L ON U.request_ID = L.request_ID
-            WHERE U.emp_ID = @employee_ID
-              AND L.final_approval_status = 'approved'
-              AND YEAR(L.date_of_request) = @req_year
-        )
-            RETURN;   -- already has an approved unpaid leave this year
 
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
@@ -651,21 +636,6 @@ BEGIN
         SELECT @dept_name = dept_name
         FROM Employee 
         WHERE employee_ID = @employee_ID;
-
-        --dont handle medical doctors
-        IF EXISTS (
-            SELECT 1
-            FROM Employee_Role ER
-            WHERE ER.emp_ID   = @employee_ID
-              AND ER.role_name = 'Medical Doctor'
-        )
-        BEGIN
-            -- Undo what we just inserted (no printing, just silent rollback)
-            DELETE FROM Employee_Approve_Leave WHERE leave_ID = @request_id;
-            DELETE FROM Unpaid_Leave           WHERE request_ID = @request_id;
-            DELETE FROM [Leave]                WHERE request_ID = @request_id;
-            RETURN;
-        END
 
         DECLARE @president_ID INT;
         SELECT @president_ID = ER.emp_ID
