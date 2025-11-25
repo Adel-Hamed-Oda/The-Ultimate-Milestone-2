@@ -20,7 +20,7 @@ CREATE PROC dropAllTables AS
     DROP TABLE IF EXISTS Leave;
     DROP TABLE IF EXISTS Role_existsIn_Department;
     DROP TABLE IF EXISTS Employee_Role;
-    DROP TABLE IF EXISTS Role;
+    DROP TABLE IF EXISTS [Role];
     DROP TABLE IF EXISTS Employee_Phone;
     DROP TABLE IF EXISTS Employee;
     DROP TABLE IF EXISTS Department;
@@ -114,7 +114,7 @@ CREATE PROC clearAllTables AS
     DELETE FROM Leave;
     DELETE FROM Role_existsIn_Department;
     DELETE FROM Employee_Role;
-    DELETE FROM Role;
+    DELETE FROM [Role];
     DELETE FROM Employee_Phone;
     DELETE FROM Employee;
     DELETE FROM Department;
@@ -216,11 +216,11 @@ CREATE PROC Update_All_Salaries AS
     SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
     FROM Employee E
     JOIN Employee_Role ER ON ER.emp_ID = E.employee_ID
-    JOIN Role R ON R.role_name = ER.role_name
+    JOIN [Role] R ON R.role_name = ER.role_name
     WHERE R.rank = (
         SELECT MIN(R2.rank)
         FROM Employee_Role ER2
-        JOIN Role R2 ON ER2.role_name = R2.role_name
+        JOIN [Role] R2 ON ER2.role_name = R2.role_name
         WHERE ER2.emp_ID = E.employee_ID
     );
 
