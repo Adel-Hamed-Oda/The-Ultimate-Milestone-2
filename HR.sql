@@ -466,7 +466,7 @@ BEGIN
 
         DECLARE @days2 INT;
 
-        SET @days2 = DATEDIFF(DAY, SOMONTH(@end_date), @end_date) + 1;
+        SET @days2 = DATEDIFF(DAY, DATEFROMPARTS(YEAR(@end_date), MONTH(@end_date), 1), @end_date) + 1;
 
         INSERT INTO Deduction (emp_ID, [date], amount, [type], [status], unpaid_ID)
         VALUES (@employee_ID, @start_date, @days2 * @daily_rate, 'unpaid', 'pending', @request_ID);
