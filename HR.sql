@@ -43,6 +43,7 @@ AS
             @parttimecheck BIT,
             @replacementemp INT,
             @availcheck BIT,
+            @avail2check BIT,
             @approvalcheck BIT,
             @balancecheck BIT,
             @balance INT,
@@ -375,7 +376,7 @@ BEGIN
     SET @d = @mysalary / 22
 
     INSERT INTO Deduction
-                (employee_id,
+                (emp_id,
                  [date],
                  amount,
                  [type],
@@ -443,12 +444,12 @@ BEGIN
         RETURN; -- No approved unpaid leave found for this employee this month that haven't already been handled
 
     DECLARE @real_start_date DATE = 
-    LEAST(
+    dbo.GetMinDate(
         @start_date,
         CAST(DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1) AS DATE)
     );
     DECLARE @real_end_date DATE =
-    GREATEST(
+    dbo.GetMaxDate(
         @end_date,
         CAST(EOMONTH(GETDATE()) AS DATE)
     );
@@ -773,4 +774,53 @@ BEGIN
 
     RETURN @check
 END
+
+GO
+
+-- Function to return the latest (maximum) of two given dates.
+CREATE FUNCTION GetMaxDate
+(
+    @Date1 DATE,
+    @Date2 DATE
+)
+RETURNS DATE
+AS
+BEGIN
+    DECLARE @ResultDate DATE;
+
+    -- Use a CASE expression to compare the two dates.
+    SET @ResultDate = CASE
+        -- If Date1 is later than Date2, return Date1.
+        WHEN @Date1 >= @Date2 THEN @Date1
+        -- Otherwise, return Date2.
+        ELSE @Date2
+    END;
+
+    RETURN @ResultDate;
+END
+
+GO
+
+-- Function to return the earliest (minimum) of two given dates.
+CREATE FUNCTION GetMinDate
+(
+    @Date1 DATE,
+    @Date2 DATE
+)
+RETURNS DATE
+AS
+BEGIN
+    DECLARE @ResultDate DATE;
+
+    -- Use a CASE expression to compare the two dates.
+    SET @ResultDate = CASE
+        -- If Date1 is later than Date2, return Date1.
+        WHEN @Date1 <= @Date2 THEN @Date1
+        -- Otherwise, return Date2.
+        ELSE @Date2
+    END;
+
+    RETURN @ResultDate;
+END
+
 GO

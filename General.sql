@@ -48,6 +48,9 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP FUNCTION IF EXISTS getIDrequesterUNPAID;
     DROP FUNCTION IF EXISTS getIDrequesterCOMP;
     DROP FUNCTION IF EXISTS GetHighestRankEmployee;
+    DROP FUNCTION IF EXISTS checkingifreplacingsomeoneelse;
+    DROP FUNCTION IF EXISTS GetMaxDate;
+    DROP FUNCTION IF EXISTS GetMinDate;
 
     DROP VIEW IF EXISTS allEmployeeProfiles;
     DROP VIEW IF EXISTS NoEmployeeDept;
