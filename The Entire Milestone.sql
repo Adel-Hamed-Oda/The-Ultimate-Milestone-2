@@ -1791,6 +1791,9 @@ GO
 ---------------------------------------------------------
 -- Submit_annual
 ---------------------------------------------------------
+---------------------------------------------------------
+-- Submit_annual
+---------------------------------------------------------
 CREATE PROC Submit_annual
     @employee_id INT, 
     @replacement_emp INT, 
@@ -1877,7 +1880,7 @@ BEGIN
         DECLARE @president_ID INT;
         SELECT @president_ID = emp_ID
         FROM dbo.Employee_Role
-        WHERE LOWER(role_name) = 'president'
+        WHERE LOWER(role_name) = 'President'
           AND dbo.Is_On_Leave(emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
 
         IF @president_ID IS NULL
@@ -1896,8 +1899,8 @@ BEGIN
         VALUES (@leave_id, @employee_id, @replacement_emp);
 
         INSERT INTO Employee_Approve_Leave 
-        VALUES (@president_ID, @request_id, 'pending'),
-               (@hr_rep, @request_id, 'pending');
+        VALUES (@president_ID, @leave_id, 'pending'),
+               (@hr_rep, @leave_id, 'pending');
 
         RETURN;
     END
@@ -1938,14 +1941,14 @@ BEGIN
     VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
     DECLARE @req_id INT;
-    SELECT @request_id = SCOPE_IDENTITY();
+    SELECT @req_id = SCOPE_IDENTITY();
 
     INSERT INTO Annual_Leave
     VALUES (@req_id, @employee_id, @replacement_emp);
 
     INSERT INTO Employee_Approve_Leave 
     VALUES (@approver1, @req_id, 'pending'),
-           (@hr_rep, @request_id, 'pending');
+           (@hr_rep, @req_id, 'pending');
 
 END
 GO
@@ -2041,7 +2044,7 @@ BEGIN
     VALUES (@leave_id, @employee_ID);
 
     INSERT INTO Employee_Approve_Leave
-    VALUES (@hr_rep, @request_id, 'pending');
+    VALUES (@hr_rep, @leave_id, 'pending');
 
 END
 GO
