@@ -3,6 +3,7 @@ use test;
 
 GO
 
+
 CREATE FUNCTION EmployeeLoginValidation
 (
     @employee_ID INT,
@@ -239,41 +240,7 @@ BEGIN
     END
 
     ----------------------------------------------------------------
-    -- Case 1: Medical department -> approval from any HR employee
-    ----------------------------------------------------------------
-    IF @dept_name = 'Medical'
-    BEGIN
-        DECLARE @hr_emp INT;
-        SELECT TOP 1 @hr_emp = E.emp_ID
-        FROM Employee_Role E
-        INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name
-        WHERE R.department_name = 'HR'
-          AND dbo.Is_On_Leave(E.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
-
-        IF @hr_emp IS NULL
-        BEGIN
-            PRINT 'Error! No HR representative available to approve you!';
-            RETURN;
-        END
-
-        -- Insert leave and approver
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
-        VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
-
-        DECLARE @request_id INT;
-        SELECT @request_id = SCOPE_IDENTITY();
-
-        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
-        VALUES (@request_id, @employee_id, @replacement_emp);
-
-        INSERT INTO Employee_Approve_Leave (emp_ID, request_ID, status)
-        VALUES (@hr_emp, @request_id, 'pending');
-
-        RETURN;
-    END
-
-    ----------------------------------------------------------------
-    -- Case 2: HR department -> approval from HR Manager
+    -- Case 1: HR department -> approval from HR Manager
     ----------------------------------------------------------------
     IF @dept_name = 'HR'
     BEGIN
@@ -296,17 +263,17 @@ BEGIN
         DECLARE @request_id INT;
         SELECT @request_id = SCOPE_IDENTITY();
 
-        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
+        INSERT INTO Annual_Leave
         VALUES (@request_id, @employee_id, @replacement_emp);
 
-        INSERT INTO Employee_Approve_Leave (emp_ID, request_ID, status)
+        INSERT INTO Employee_Approve_Leave 
         VALUES (@hr_manager, @request_id, 'pending');
 
         RETURN;
     END
 
     ----------------------------------------------------------------
-    -- Case 3: Other departments
+    -- Case 2: Other departments
     ----------------------------------------------------------------
 
     -- Find HR representative for this department
@@ -344,13 +311,13 @@ BEGIN
         INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
-        DECLARE @request_id INT;
-        SELECT @request_id = SCOPE_IDENTITY();
+        DECLARE @leave_id INT;
+        SELECT @leave_id = SCOPE_IDENTITY();
 
-        INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
-        VALUES (@request_id, @employee_id, @replacement_emp);
+        INSERT INTO Annual_Leave
+        VALUES (@leave_id, @employee_id, @replacement_emp);
 
-        INSERT INTO Employee_Approve_Leave (emp_ID, request_ID, status)
+        INSERT INTO Employee_Approve_Leave 
         VALUES (@president_ID, @request_id, 'pending'),
                (@hr_rep, @request_id, 'pending');
 
@@ -392,14 +359,14 @@ BEGIN
     INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
     VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
-    DECLARE @request_id INT;
+    DECLARE @req_id INT;
     SELECT @request_id = SCOPE_IDENTITY();
 
-    INSERT INTO Annual_Leave(request_ID, emp_ID, replacement_emp)
-    VALUES (@request_id, @employee_id, @replacement_emp);
+    INSERT INTO Annual_Leave
+    VALUES (@req_id, @employee_id, @replacement_emp);
 
-    INSERT INTO Employee_Approve_Leave (emp_ID, request_ID, status)
-    VALUES (@approver1, @request_id, 'pending'),
+    INSERT INTO Employee_Approve_Leave 
+    VALUES (@approver1, @req_id, 'pending'),
            (@hr_rep, @request_id, 'pending');
 
 END
@@ -460,47 +427,14 @@ BEGIN
         INSERT INTO Accidental_Leave(request_ID, emp_ID)
         VALUES (@request_id, @employee_ID);
 
-        INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
+        INSERT INTO Employee_Approve_Leave
         VALUES (@HR_manager, @request_id, 'pending');
 
         RETURN;
     END
 
     ----------------------------------------------------------------
-    -- Case 2: Medical department -> any HR employee approval
-    ----------------------------------------------------------------
-    IF @dept_name = 'Medical'
-    BEGIN
-        DECLARE @HR INT;
-        SELECT TOP 1 @HR = E.emp_ID
-        FROM Employee_Role E
-        INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name
-        WHERE R.department_name = 'HR'
-          AND dbo.Is_On_Leave(E.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
-
-        IF @HR IS NULL
-        BEGIN
-            PRINT 'Error! No HR representative available to approve you.';
-            RETURN;
-        END
-
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
-        VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
-
-        DECLARE @request_id INT;
-        SELECT @request_id = SCOPE_IDENTITY();
-
-        INSERT INTO Accidental_Leave(request_ID, emp_ID)
-        VALUES (@request_id, @employee_ID);
-
-        INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
-        VALUES (@HR, @request_id, 'pending');
-
-        RETURN;
-    END
-
-    ----------------------------------------------------------------
-    -- Case 3: Regular employees -> HR representative of their department
+    -- Case 2: Regular employees -> HR representative of their department
     ----------------------------------------------------------------
     DECLARE @hr_rep INT;
     SELECT @hr_rep = E.emp_ID
@@ -522,13 +456,13 @@ BEGIN
     INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
     VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
-    DECLARE @request_id INT;
-    SELECT @request_id = SCOPE_IDENTITY();
+    DECLARE @leave_id INT;
+    SELECT @leave_id = SCOPE_IDENTITY();
 
     INSERT INTO Accidental_Leave(request_ID, emp_ID)
-    VALUES (@request_id, @employee_ID);
+    VALUES (@leave_id, @employee_ID);
 
-    INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
+    INSERT INTO Employee_Approve_Leave
     VALUES (@hr_rep, @request_id, 'pending');
 
 END
@@ -606,7 +540,7 @@ BEGIN
         INSERT INTO Medical_Leave(request_ID, insurance_status, disability_details, type, emp_ID)
         VALUES (@request_id, @insurance_status, @disability_details, @type, @employee_ID);
 
-        INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
+        INSERT INTO Employee_Approve_Leave
         VALUES (@Medical_Employee, @request_id, 'pending'),
                (@HR_Manager, @request_id, 'pending');
 
@@ -617,56 +551,11 @@ BEGIN
         RETURN;
     END
 
-    ----------------------------------------------------------------
-    -- Case 2: Medical employees -> any Medical staff + any HR employee
-    ----------------------------------------------------------------
-    IF @dept_name = 'Medical'
-    BEGIN
-        DECLARE @Medical_Employee INT;
-        DECLARE @HR INT;
-
-        SELECT TOP 1 @Medical_Employee = E.emp_ID
-        FROM Employee_Role E
-        INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name
-        WHERE R.department_name = 'Medical'
-          AND dbo.Is_On_Leave(E.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
-
-        SELECT TOP 1 @HR = E.emp_ID
-        FROM Employee_Role E
-        INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name
-        WHERE R.department_name = 'HR'
-          AND dbo.Is_On_Leave(E.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
-
-        IF @Medical_Employee IS NULL OR @HR IS NULL
-        BEGIN
-            PRINT 'Error! No approvers available (Medical staff or HR employee).';
-            RETURN;
-        END
-
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
-        VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
-
-        DECLARE @request_id INT;
-        SELECT @request_id = SCOPE_IDENTITY();
-
-        INSERT INTO Medical_Leave(request_ID, insurance_status, disability_details, type, emp_ID)
-        VALUES (@request_id, @insurance_status, @disability_details, @type, @employee_ID);
-
-        INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
-        VALUES (@Medical_Employee, @request_id, 'pending'),
-               (@HR, @request_id, 'pending');
-
-        UPDATE Document 
-        SET medical_ID = @request_id, description = @document_description, file_name = @file_name
-        WHERE emp_ID = @employee_ID;
-
-        RETURN;
-    END
 
     ----------------------------------------------------------------
-    -- Case 3: Regular employees -> any Medical staff + HR representative of their department
+    -- Case 2: Regular employees -> any Medical staff + HR representative of their department
     ----------------------------------------------------------------
-    DECLARE @Medical_Employee INT;
+    DECLARE @medical_doctor INT;
     DECLARE @hr_rep INT;
 
     -- Any Medical employee
@@ -695,18 +584,18 @@ BEGIN
     INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
     VALUES (CAST(GETDATE() AS DATE), @start_date, @end_date, 'pending');
 
-    DECLARE @request_id INT;
-    SELECT @request_id = SCOPE_IDENTITY();
+    DECLARE @leave_id INT;
+    SELECT @leave_id = SCOPE_IDENTITY();
 
-    INSERT INTO Medical_Leave(request_ID, insurance_status, disability_details, type, emp_ID)
-    VALUES (@request_id, @insurance_status, @disability_details, @type, @employee_ID);
+    INSERT INTO Medical_Leave
+    VALUES (@leave_id, @insurance_status, @disability_details, @type, @employee_ID);
 
-    INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
-    VALUES (@Medical_Employee, @request_id, 'pending'),
+    INSERT INTO Employee_Approve_Leave
+    VALUES (@medical_doctor, @request_id, 'pending'),
            (@hr_rep, @request_id, 'pending');
 
     UPDATE Document 
-    SET medical_ID = @request_id, description = @document_description, file_name = @file_name
+    SET medical_ID = @leave_id, description = @document_description, file_name = @file_name
     WHERE emp_ID = @employee_ID;
 
 END
@@ -874,7 +763,6 @@ END
 GO
 
 
-
 ---------------------------------------------------------
 -- Submit_compensation
 ---------------------------------------------------------
@@ -908,56 +796,26 @@ BEGIN
             RETURN;
         END
 
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
+    
+        INSERT INTO Leave  (date_of_request, start_date, end_date, final_approval_status)
         VALUES (CAST(GETDATE() AS DATE), @compensation_date, @compensation_date, 'pending');
 
         DECLARE @request_ID INT;
         SELECT @request_ID = SCOPE_IDENTITY();
 
-        INSERT INTO Compensation_Leave(request_ID, reason, date_of_original_workday, emp_ID, replacement_emp)
+        INSERT INTO Compensation_Leave
         VALUES (@request_ID, @reason, @date_of_original_workday, @emp_ID, @replacement_emp);
 
-        INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
+        INSERT INTO Employee_Approve_Leave
         VALUES (@HR_manager, @request_ID, 'pending');
 
         RETURN;
     END
 
-    ----------------------------------------------------------------
-    -- Case 2: Medical employees -> any HR employee approval
-    ----------------------------------------------------------------
-    IF @dept_name = 'Medical'
-    BEGIN
-        DECLARE @HR INT;
-        SELECT TOP 1 @HR = E.emp_ID
-        FROM Employee_Role E
-        INNER JOIN Role_Exists_In_Department R ON E.role_name = R.role_name
-        WHERE R.department_name = 'HR'
-          AND dbo.Is_On_Leave(E.emp_ID, CAST(GETDATE() AS DATE), CAST(GETDATE() AS DATE)) = 0;
-
-        IF @HR IS NULL
-        BEGIN
-            PRINT 'Error! No HR employees available.';
-            RETURN;
-        END
-
-        INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
-        VALUES (CAST(GETDATE() AS DATE), @compensation_date, @compensation_date, 'pending');
-
-        DECLARE @request_ID INT;
-        SELECT @request_ID = SCOPE_IDENTITY();
-
-        INSERT INTO Compensation_Leave(request_ID, reason, date_of_original_workday, emp_ID, replacement_emp)
-        VALUES (@request_ID, @reason, @date_of_original_workday, @emp_ID, @replacement_emp);
-
-        INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
-        VALUES (@HR, @request_ID, 'pending');
-
-        RETURN;
-    END
+  
 
     ----------------------------------------------------------------
-    -- Case 3: Regular employees -> HR Representative for their department
+    -- Case 2: Regular employees -> HR Representative for their department
     ----------------------------------------------------------------
     DECLARE @hr_rep INT;
     SELECT @hr_rep = E.emp_ID
@@ -977,14 +835,14 @@ BEGIN
     INSERT INTO Leave(date_of_request, start_date, end_date, final_approval_status)
     VALUES (CAST(GETDATE() AS DATE), @compensation_date, @compensation_date, 'pending');
 
-    DECLARE @request_ID INT;
-    SELECT @request_ID = SCOPE_IDENTITY();
+    DECLARE @leave_ID INT;
+    SELECT @leave_ID = SCOPE_IDENTITY();
 
     INSERT INTO Compensation_Leave(request_ID, reason, date_of_original_workday, emp_ID, replacement_emp)
-    VALUES (@request_ID, @reason, @date_of_original_workday, @emp_ID, @replacement_emp);
+    VALUES (@leave_ID, @reason, @date_of_original_workday, @emp_ID, @replacement_emp);
 
-    INSERT INTO Employee_Approve_Leave(emp_ID, request_ID, status)
-    VALUES (@hr_rep, @request_ID, 'pending');
+    INSERT INTO Employee_Approve_Leave
+    VALUES (@hr_rep,  @leave_ID, 'pending');
 
 END
 GO
@@ -1057,6 +915,7 @@ BEGIN
     END
 END
 GO
+
 
 --i think this is done but someone pls check 
 CREATE PROC Upperboard_approve_unpaids
