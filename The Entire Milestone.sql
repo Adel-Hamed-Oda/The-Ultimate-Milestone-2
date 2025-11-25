@@ -285,36 +285,58 @@ EXEC createAllTables;
 
 GO
 
-CREATE TRIGGER trg_CalculateSalary
-    ON Employee
-    AFTER INSERT, UPDATE
-    AS
+CREATE TRIGGER trg_InsertEmployeeRole
+ON Role
+INSTEAD OF INSERT
+AS
+BEGIN
+    -- If any inserted HR_Representative_* has an invalid department suffix,
+    -- skip inserting all of them
+    IF EXISTS (
+        SELECT *
+        FROM inserted i
+        WHERE i.role_name LIKE 'HR_Representative_%'
+          AND SUBSTRING(i.role_name, 19, LEN(i.role_name) - 18)
+              NOT IN (SELECT name FROM Department)
+    )
     BEGIN
-        SET NOCOUNT ON;
-
-        -- Update the salary for employees who just had a role assigned or changed
-        UPDATE E
-        SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
-        FROM Employee E
-        -- Join with the 'inserted' table to only target affected employees
-        INNER JOIN inserted I ON E.employee_ID = I.employee_ID
-        -- Find the role details for the highest rank (lowest number) this employee now holds
-        INNER JOIN Role R ON R.rank = (
-            SELECT MIN(R2.rank)
-            FROM Employee_Role ER2
-            JOIN Role R2 ON ER2.role_name = R2.role_name
-            WHERE ER2.emp_ID = E.employee_ID
-        );
+        -- error message for debugging we can delete it later 
+        PRINT 'Invalid HR Representative role_name: does not exist.';
+        RETURN;
     END;
-    GO
+
+    -- Otherwise insert 
+    INSERT INTO Role (
+        role_name,
+        title,
+        description,
+        rank,
+        base_salary,
+        percentage_YOE,
+        percentage_overtime,
+        annual_balance,
+        accidental_balance
+    )
+    SELECT
+        role_name,
+        title,
+        description,
+        rank,
+        base_salary,
+        percentage_YOE,
+        percentage_overtime,
+        annual_balance,
+        accidental_balance
+    FROM inserted;
+END;
+
+GO
 
 -------------------------------------------------------
 -------------------------------------------------------
 --                      GENERAL
 -------------------------------------------------------
 -------------------------------------------------------
-
-GO
 
 CREATE PROC dropAllTables AS
 
@@ -404,7 +426,10 @@ CREATE PROC dropAllProceduresFunctionsViews AS
     DROP PROCEDURE IF EXISTS createAllTables;
     DROP PROCEDURE IF EXISTS dropAllTables;
     DROP PROCEDURE IF EXISTS clearAllTables;
+    DROP PROCEDURE IF EXISTS Update_All_Salaries;
     DROP TRIGGER IF EXISTS trg_CalculateSalary;
+    DROP TRIGGER IF EXISTS trg_EmployeeInsert;
+    DROP TRIGGER IF EXISTS trg_InsertEmployeeRole;
 
     DROP PROCEDURE IF EXISTS dropAllProceduresFunctionsViews; -- the suicide line
     -- if the description was better we could've evaded this
@@ -518,6 +543,36 @@ CREATE VIEW allEmployeeAttendance AS
     FROM Attendance A
     INNER JOIN Employee E ON A.emp_ID = E.employee_ID
     WHERE A.[date] = CAST(DATEADD(DAY, -1, GETDATE()) AS DATE);
+
+GO
+
+----------------------------------------------------------------
+--                          EXTRA PROC
+----------------------------------------------------------------
+
+CREATE PROC Update_All_Salaries AS
+
+    UPDATE E
+    SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
+    FROM Employee E
+    JOIN Employee_Role ER ON ER.emp_ID = E.employee_ID
+    JOIN [Role] R ON R.role_name = ER.role_name
+    WHERE R.rank = (
+        SELECT MIN(R2.rank)
+        FROM Employee_Role ER2
+        JOIN [Role] R2 ON ER2.role_name = R2.role_name
+        WHERE ER2.emp_ID = E.employee_ID
+    );
+
+GO
+
+CREATE TRIGGER trg_EmployeeInsert
+ON Employee
+AFTER INSERT, UPDATE
+AS
+BEGIN 
+    EXEC Update_All_Salaries;
+END
 
 GO
 

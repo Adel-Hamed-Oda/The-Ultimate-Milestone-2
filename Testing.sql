@@ -9,3 +9,4 @@ EXEC dropAllTables;
 EXEC dropAllProceduresFunctionsViews;
 
 EXEC createAllTables;
+
