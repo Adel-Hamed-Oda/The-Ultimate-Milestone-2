@@ -168,16 +168,25 @@ CREATE VIEW allPerformance AS
 GO
 
 CREATE VIEW allRejectedMedicals AS
-
     SELECT 
-        L.*,
-        M.*
+        -- Leave details
+        L.request_ID,
+        L.date_of_request,
+        L.start_date,
+        L.end_date,
+        L.num_days,
+        L.final_approval_status,
+
+        -- Medical_Leave details
+        M.emp_ID,
+        M.insurance_status,
+        M.disability_details,
+        M.[type]
     FROM Medical_Leave M
-    JOIN Leave L ON M.request_ID = L.request_ID
-    JOIN Employee E ON M.emp_ID = E.employee_ID
+    JOIN [Leave] L ON M.request_ID = L.request_ID
     WHERE L.final_approval_status = 'rejected';
 
-GO
+GOfixed 
 
 CREATE VIEW allEmployeeAttendance AS
 

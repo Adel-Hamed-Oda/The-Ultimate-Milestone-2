@@ -521,6 +521,15 @@ CREATE PROCEDURE Add_Payroll
 AS
 BEGIN
 
+    -- Check if payroll for this month already exists
+    IF EXISTS (
+        SELECT 1 
+        FROM Payroll 
+        WHERE emp_ID = @employee_ID 
+            AND MONTH(from_date) = MONTH(@from_date) 
+            AND YEAR(from_date) = YEAR(@from_date))
+    RETURN;
+
     DECLARE @salary DECIMAL(10,10),
             @bonus DECIMAL(10,10),
             @deductions DECIMAL(10,10);
