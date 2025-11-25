@@ -593,27 +593,52 @@ BEGIN
 END
 GO
 
-
---unfinished, kinda ignore for now
+--i think this is done but someone pls check 
 CREATE PROC Upperboard_approve_unpaids
 @request_ID INT,
 @Upperboard_ID INT
 AS
 BEGIN
-IF EXISTS(SELECT 1 
-    FROM Document D 
-    WHERE unpaid_ID = @request_ID) 
-BEGIN 
- INSERT INTO Employee_Approve_Leave
-        VALUES(@Upperboard_ID, @request_ID, 'approved');
-END 
-ELSE 
-BEGIN 
-INSERT INTO Employee_Approve_Leave
-        VALUES(@Upperboard_ID, @request_ID, 'rejected');
-END 
-END 
+    IF NOT EXISTS (SELECT 1 FROM Unpaid_Leave WHERE request_ID = @request_ID)
+        RETURN;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Employee_Role
+        WHERE emp_ID = @Upperboard_ID
+          AND role_name IN ('Dean','Vice Dean','President')
+    )
+        RETURN;
+
+    IF EXISTS (
+  
+        SELECT 1
+        FROM Document D
+        WHERE D.unpaid_ID = @request_ID          
+          AND LOWER(D.type) = 'memo'             
+          AND D.status = 'valid'                 
+          AND ISNULL(D.description,'') <> ''     
+    )
+    BEGIN
+ 
+        UPDATE Employee_Approve_Leave
+        SET status = 'approved'
+        WHERE emp1_ID  = @Upperboard_ID
+          AND leave_ID = @request_ID
+          AND status   = 'pending';
+    END
+    ELSE
+    BEGIN
+        UPDATE Employee_Approve_Leave
+        SET status = 'rejected'
+        WHERE emp1_ID  = @Upperboard_ID
+          AND leave_ID = @request_ID
+          AND status   = 'pending';
+    END
+END;
 GO
+
+
 
 CREATE PROC Dean_andHR_Evaluation
 @employee_ID INT,
