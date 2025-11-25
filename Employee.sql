@@ -667,8 +667,6 @@ BEGIN
             RETURN;
         END
 
-        
-
         DECLARE @president_ID INT;
         SELECT @president_ID = ER.emp_ID
         FROM Employee_Role ER
