@@ -286,7 +286,7 @@ EXEC createAllTables;
 GO
 
 CREATE TRIGGER trg_CalculateSalary
-    ON Employee_Role
+    ON Employee
     AFTER INSERT, UPDATE
     AS
     BEGIN
@@ -297,7 +297,7 @@ CREATE TRIGGER trg_CalculateSalary
         SET E.salary = R.base_salary + ((R.percentage_YOE / 100.0) * E.years_of_experience * R.base_salary)
         FROM Employee E
         -- Join with the 'inserted' table to only target affected employees
-        INNER JOIN inserted I ON E.employee_ID = I.emp_ID
+        INNER JOIN inserted I ON E.employee_ID = I.employee_ID
         -- Find the role details for the highest rank (lowest number) this employee now holds
         INNER JOIN Role R ON R.rank = (
             SELECT MIN(R2.rank)
