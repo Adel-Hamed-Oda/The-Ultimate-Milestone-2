@@ -167,7 +167,7 @@ CREATE VIEW allPerformance AS
 
 GO
 
--- TODO: should I add the Leave details too?
+-- TODO: should I add the main Leave table details too?
 CREATE VIEW allRejectedMedicals AS
 
     SELECT 
@@ -225,16 +225,16 @@ CREATE PROC Finalize_Deductions AS
     deductions_amount = deductions_amount + ISNULL((
             SELECT SUM(D.amount)
             FROM Deduction D
-            WHERE D.date BETWEEN Payroll.start_date AND Payroll.end_date
+            WHERE D.date BETWEEN Payroll.from_date AND Payroll.to_date
               AND D.status = 'pending'
               AND D.emp_ID = Payroll.emp_ID), 0)
-    WHERE YEAR(Payroll.start_date) = YEAR(GETDATE())
-        AND MONTH(Payroll.start_date) = MONTH(GETDATE());
+    WHERE YEAR(Payroll.from_date) = YEAR(GETDATE())
+        AND MONTH(Payroll.from_date) = MONTH(GETDATE());
 
     UPDATE Deduction SET
     Deduction.status = 'finalized'
-    WHERE YEAR(D.date) = YEAR(GETDATE())
-        AND MONTH(D.date) = MONTH(GETDATE())
+    WHERE YEAR(Deduction.date) = YEAR(GETDATE())
+        AND MONTH(Deduction.date) = MONTH(GETDATE())
         AND Deduction.status = 'pending';
 
 GO
