@@ -201,7 +201,6 @@ GO
 --                          EXTRA PROC
 ----------------------------------------------------------------
 
--- TODO: probably going turn this into a trigger
 CREATE PROC Update_All_Salaries AS
 
     UPDATE E
@@ -215,26 +214,5 @@ CREATE PROC Update_All_Salaries AS
         JOIN Role R2 ON ER2.role_name = R2.role_name
         WHERE ER2.emp_ID = E.employee_ID
     );
-
-GO
-
--- TODO; check if it is correct
-CREATE PROC Finalize_Deductions AS
-    
-    UPDATE Payroll SET
-    deductions_amount = deductions_amount + ISNULL((
-            SELECT SUM(D.amount)
-            FROM Deduction D
-            WHERE D.date BETWEEN Payroll.from_date AND Payroll.to_date
-              AND D.status = 'pending'
-              AND D.emp_ID = Payroll.emp_ID), 0)
-    WHERE YEAR(Payroll.from_date) = YEAR(GETDATE())
-        AND MONTH(Payroll.from_date) = MONTH(GETDATE());
-
-    UPDATE Deduction SET
-    Deduction.status = 'finalized'
-    WHERE YEAR(Deduction.date) = YEAR(GETDATE())
-        AND MONTH(Deduction.date) = MONTH(GETDATE())
-        AND Deduction.status = 'pending';
 
 GO
